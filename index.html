@@ -235,6 +235,18 @@ code{font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px}
 .lock .btn{justify-content:center;padding:11px}
 .pw-fields{display:grid;gap:12px;max-width:360px;margin-bottom:14px}
 .pw-fields .err{color:var(--danger);font-size:14px}
+.toward{display:flex;gap:10px;align-items:flex-start;grid-column:1/-1;padding:12px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--surface)}
+.toward.on{border-color:var(--accent);background:var(--accent-soft)}
+.toward input{margin-top:2px;flex:none}
+.toward strong{display:block;font-size:14px}
+.toward span{font-size:13px;color:var(--muted)}
+.split{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--bg);margin:4px 0 14px}
+.split i{display:block;height:100%}
+.split .s-loan{background:var(--ochre)}
+.split .s-paid{background:var(--accent)}
+.legend span.loan::before{background:var(--ochre)}
+.legend span.due::before{background:var(--line)}
+.calc.warn{background:var(--danger-soft)}
 </style>
 </head>
 <body>
@@ -304,6 +316,7 @@ function normalize(raw) {
       id: p.id || uid(), date: p.date || '', category: catById[p.category] ? p.category : 'other',
       description: p.description || '', paidTo: p.paidTo || '', mode: p.mode || '', reference: p.reference || '',
       amount: num(p.amount),
+      towardPrice: typeof p.towardPrice === 'boolean' ? p.towardPrice : !!(catById[p.category] && catById[p.category].price),
     })),
     emis: (Array.isArray(raw.emis) ? raw.emis : []).map((e, i) => ({
       id: e.id || uid(), no: e.no || i + 1, dueDate: e.dueDate || '', amount: num(e.amount),
@@ -343,8 +356,12 @@ function buildSchedule(loan, old) {
 function summarize(data) {
   const byCat = {}; CATS.forEach(c => byCat[c.id] = 0);
   let totalPayments = 0;
-  data.payments.forEach(p => { byCat[p.category] = (byCat[p.category] || 0) + num(p.amount); totalPayments += num(p.amount); });
-  const towardDirect = CATS.filter(c => c.price).reduce((a, c) => a + byCat[c.id], 0);
+  const byCatToward = {}; CATS.forEach(c => byCatToward[c.id] = 0);
+  data.payments.forEach(p => {
+    byCat[p.category] = (byCat[p.category] || 0) + num(p.amount); totalPayments += num(p.amount);
+    if (p.towardPrice) byCatToward[p.category] = (byCatToward[p.category] || 0) + num(p.amount);
+  });
+  const towardDirect = data.payments.filter(p => p.towardPrice).reduce((a, p) => a + num(p.amount), 0);
   const additional = totalPayments - towardDirect;
   const L = data.loan;
   const loanToSeller = L.enabled && L.paidToSeller ? num(L.principal) : 0;
@@ -367,6 +384,11 @@ function summarize(data) {
     pocket: totalPayments + emiPaid, overdue, next,
     projected: totalCost + additional + scheduledInterest,
     pct: totalCost > 0 ? Math.min(1, towardPrice / totalCost) : 0,
+    byCatToward,
+    ownShare: Math.max(0, totalCost - loanToSeller),
+    ownRemaining: Math.max(0, totalCost - loanToSeller - towardDirect),
+    overpaid: totalCost > 0 ? Math.max(0, towardPrice - totalCost) : 0,
+    loanPct: totalCost > 0 ? loanToSeller / totalCost : 0,
   };
 }
 
@@ -444,16 +466,22 @@ function buildWorkbook(data, s) {
     ['Total spent from your pocket (₹)', s.pocket],
     ['Projected total cost incl. interest (₹)', s.projected],
     [],
-    ['Spending by category', 'Amount (₹)', 'Counts toward land price'],
-    ...CATS.map(c => [c.label, s.byCat[c.id], c.price ? 'Yes' : 'No']),
+    ['Land price split'],
+    ['Loan paid to seller (₹)', s.loanToSeller],
+    ['Your share of the land price (₹)', s.ownShare],
+    ['Paid from your share (₹)', s.towardDirect],
+    ['Your share still to pay (₹)', s.ownRemaining],
+    [],
+    ['Spending by category', 'Total (₹)', 'Toward land price (₹)'],
+    ...CATS.map(c => [c.label, s.byCat[c.id], s.byCatToward[c.id]]),
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(summary);
-  formatSheet(ws1, { money: [1], widths: [38, 22, 24] });
+  formatSheet(ws1, { money: [1, 2], widths: [38, 22, 24] });
   XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
 
   const pays = [...data.payments].sort((a, b) => (a.date > b.date ? 1 : -1));
   const payRows = [['Date', 'Category', 'Description', 'Paid to', 'Mode', 'Reference', 'Amount (₹)', 'Counts toward land price']];
-  pays.forEach(p => payRows.push([serial(p.date), catById[p.category].label, p.description, p.paidTo, p.mode, p.reference, num(p.amount), catById[p.category].price ? 'Yes' : 'No']));
+  pays.forEach(p => payRows.push([serial(p.date), catById[p.category].label, p.description, p.paidTo, p.mode, p.reference, num(p.amount), p.towardPrice ? 'Yes' : 'No']));
   payRows.push([], ['', '', '', '', '', 'Total', s.totalPayments, '']);
   const ws2 = XLSX.utils.aoa_to_sheet(payRows);
   formatSheet(ws2, { money: [6], dates: [0], widths: [13, 26, 34, 22, 15, 18, 16, 22] });
@@ -686,7 +714,7 @@ function Field({ label, wide, help, children }) {
 
 /* ---------- forms ---------- */
 function PaymentForm({ item, onSave, onClose }) {
-  const [f, setF] = useState(item || { date: todayISO(), category: 'booking', amount: '', description: '', paidTo: '', mode: 'Bank transfer', reference: '' });
+  const [f, setF] = useState(item || { date: todayISO(), category: 'booking', amount: '', description: '', paidTo: '', mode: 'Bank transfer', reference: '', towardPrice: true });
   const [err, setErr] = useState('');
   const set = k => e => setF({ ...f, [k]: e.target.value });
   const save = () => {
@@ -699,10 +727,15 @@ function PaymentForm({ item, onSave, onClose }) {
     <div className="fields">
       <${Field} label="Date"><input type="date" value=${f.date} onChange=${set('date')} /><//>
       <${Field} label="Amount (₹)"><input type="number" min="0" step="any" inputMode="decimal" value=${f.amount} onChange=${set('amount')} autoFocus /><//>
-      <${Field} label="What was it for" wide
-        help=${catById[f.category].price ? 'Counts toward the land price.' : 'Counted as an additional cost, on top of the land price.'}>
-        <select value=${f.category} onChange=${set('category')}>${CATS.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}</select>
+      <${Field} label="What was it for" wide>
+        <select value=${f.category} onChange=${e => setF({ ...f, category: e.target.value, towardPrice: !!catById[e.target.value].price })}>${CATS.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}</select>
       <//>
+      <label className=${'toward' + (f.towardPrice ? ' on' : '')}>
+        <input type="checkbox" className="check" checked=${!!f.towardPrice} onChange=${e => setF({ ...f, towardPrice: e.target.checked })} />
+        <span><strong>Include in land amount</strong>${f.towardPrice
+          ? 'Counts toward the land price, along with your loan amount.'
+          : 'Kept as an additional cost, on top of the land price.'}</span>
+      </label>
       <${Field} label="Description" wide><input value=${f.description} onChange=${set('description')} placeholder="e.g. Second installment as per agreement" /><//>
       <${Field} label="Paid to"><input value=${f.paidTo} onChange=${set('paidTo')} placeholder="Person or office" /><//>
       <${Field} label="Payment mode"><select value=${f.mode} onChange=${set('mode')}>${MODES.map(m => html`<option key=${m}>${m}</option>`)}</select><//>
@@ -712,7 +745,7 @@ function PaymentForm({ item, onSave, onClose }) {
   <//>`;
 }
 
-function LoanForm({ loan, hasEmis, onSave, onClose }) {
+function LoanForm({ loan, hasEmis, landPrice, onSave, onClose }) {
   const [f, setF] = useState({ ...loan, enabled: true });
   const [gen, setGen] = useState(!hasEmis);
   const [err, setErr] = useState('');
@@ -729,6 +762,11 @@ function LoanForm({ loan, hasEmis, onSave, onClose }) {
       footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save loan</button>`}>
     <div className="fields">
       <${Field} label="Lender" wide><input value=${f.lender} onChange=${set('lender')} placeholder="Bank or finance company" /><//>
+      ${num(landPrice) > 0 && html`<${Field} label="Loan % of land price" help=${'Land price ' + inr(landPrice) + '. Fills in the loan amount.'}>
+        <input type="number" min="0" max="100" step="any" placeholder="e.g. 80"
+          value=${num(f.principal) > 0 ? Math.round(num(f.principal) / num(landPrice) * 10000) / 100 : ''}
+          onChange=${e => setF({ ...f, principal: e.target.value === '' ? '' : String(r2(num(landPrice) * num(e.target.value) / 100)) })} />
+      <//>`}
       <${Field} label="Loan amount (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
       <${Field} label="Interest rate (% per year)"><input type="number" min="0" step="any" value=${f.rate} onChange=${set('rate')} /><//>
       <${Field} label="Tenure (months)"><input type="number" min="1" step="1" value=${f.tenureMonths} onChange=${set('tenureMonths')} /><//>
@@ -789,7 +827,7 @@ function Overview({ data, s, go }) {
               ${s.loanToSeller > 0 && html`<div><div className="bar-head"><span>Loan paid to seller</span><span>${inr(s.loanToSeller)}</span></div><div className="track"><i style=${{ width: (s.loanToSeller / max * 100) + '%' }} /></div></div>`}
               ${used.map(c => html`<div key=${c.id}>
                 <div className="bar-head"><span>${c.label}</span><span>${inr(s.byCat[c.id])}</span></div>
-                <div className="track"><i className=${c.price ? '' : 'extra'} style=${{ width: (s.byCat[c.id] / max * 100) + '%' }} /></div>
+                <div className="track"><i className=${s.byCatToward[c.id] >= s.byCat[c.id] ? '' : 'extra'} style=${{ width: (s.byCat[c.id] / max * 100) + '%' }} /></div>
               </div>`)}
             </div>`}
       </section>
@@ -802,6 +840,22 @@ function Overview({ data, s, go }) {
       </section>
     </div>
     <div>
+      ${s.totalCost > 0 && html`<section className="box">
+        <h2>Land price split</h2>
+        <div className="legend">${s.loanToSeller > 0 && html`<span className="loan">Loan</span>`}<span>You paid</span><span className="due">Still to pay</span></div>
+        <div className="split" role="img" aria-label=${'Loan ' + inr(s.loanToSeller) + ', you paid ' + inr(s.towardDirect) + ', still to pay ' + inr(s.ownRemaining)}>
+          <i className="s-loan" style=${{ width: Math.min(100, s.loanToSeller / s.totalCost * 100) + '%' }} />
+          <i className="s-paid" style=${{ width: Math.min(100 - Math.min(100, s.loanToSeller / s.totalCost * 100), s.towardDirect / s.totalCost * 100) + '%' }} />
+        </div>
+        ${s.overpaid > 0 && html`<p className="calc warn" style=${{ marginBottom: '12px' }}>Loan plus payments marked "Include in land amount" are ${inr(s.overpaid)} more than the land price. Check the land price, the loan amount, or which payments are included.</p>`}
+        <dl className="kv">
+          <div><dt>Land price</dt><dd>${inr(s.totalCost)}</dd></div>
+          ${s.loanToSeller > 0 && html`<div><dt>Loan (${Math.round(s.loanPct * 1000) / 10}%)</dt><dd>${inr(s.loanToSeller)}</dd></div>`}
+          <div><dt>Your share (${Math.round((1 - s.loanPct) * 1000) / 10}%)</dt><dd>${inr(s.ownShare)}</dd></div>
+          <div><dt>Paid from your share</dt><dd>${inr(s.towardDirect)}</dd></div>
+          <div style=${{ borderTop: '1px solid var(--line)', paddingTop: '10px' }}><dt>Your share still to pay</dt><dd>${inr(s.ownRemaining)}</dd></div>
+        </dl>
+      </section>`}
       <section className="box">
         <h2>Loan and EMIs</h2>
         ${!data.loan.enabled && data.emis.length === 0
@@ -832,14 +886,14 @@ function Overview({ data, s, go }) {
 
 function Payments({ data, onAdd, onEdit, onDelete }) {
   const [filter, setFilter] = useState('all');
-  const rows = [...data.payments].filter(p => filter === 'all' || (filter === 'price' ? catById[p.category].price : filter === 'extra' ? !catById[p.category].price : p.category === filter))
+  const rows = [...data.payments].filter(p => filter === 'all' || (filter === 'price' ? p.towardPrice : filter === 'extra' ? !p.towardPrice : p.category === filter))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
   const total = rows.reduce((a, p) => a + num(p.amount), 0);
   const mobile = useIsMobile();
   const actions = p => html`<div className="row-actions"><button className="btn quiet small" onClick=${() => onEdit(p)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDelete(p)}>Delete</button></div>`;
   const list = mobile ? html`<div className="cards">
       ${rows.map(p => html`<article key=${p.id} className="card">
-        <div className="card-top"><span className=${'pill' + (catById[p.category].price ? '' : ' extra')}>${catById[p.category].label}</span><strong>${inr(p.amount)}</strong></div>
+        <div className="card-top"><span className=${'pill' + (p.towardPrice ? '' : ' extra')}>${catById[p.category].label}</span><strong>${inr(p.amount)}</strong></div>
         ${p.description && html`<div>${p.description}</div>`}
         <div className="meta">${[fdate(p.date), p.mode, p.paidTo && 'To ' + p.paidTo, p.reference && 'Ref ' + p.reference].filter(Boolean).join(', ')}</div>
         ${actions(p)}
@@ -866,7 +920,7 @@ function Payments({ data, onAdd, onEdit, onDelete }) {
           <thead><tr><th>Date</th><th>For</th><th>Details</th><th>Mode</th><th className="num">Amount</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
           <tbody>${rows.map(p => html`<tr key=${p.id}>
             <td className="nowrap">${fdate(p.date)}</td>
-            <td><span className=${'pill' + (catById[p.category].price ? '' : ' extra')}>${catById[p.category].label}</span></td>
+            <td><span className=${'pill' + (p.towardPrice ? '' : ' extra')}>${catById[p.category].label}</span></td>
             <td>${p.description || '—'}${(p.paidTo || p.reference) && html`<div className="meta">${[p.paidTo && 'To ' + p.paidTo, p.reference && 'Ref ' + p.reference].filter(Boolean).join(', ')}</div>`}</td>
             <td className="nowrap">${p.mode || '—'}</td>
             <td className="num"><strong>${inr(p.amount)}</strong></td>
@@ -1235,7 +1289,7 @@ function App({ initial, initialLock, onLock }) {
 
     ${modal && modal.type === 'payment' && html`<${PaymentForm} item=${modal.item} onSave=${savePayment} onClose=${() => setModal(null)} />`}
     ${modal && modal.type === 'emi' && html`<${EmiForm} item=${modal.item} nextNo=${data.emis.reduce((m, e) => Math.max(m, e.no), 0) + 1} onSave=${saveEmi} onClose=${() => setModal(null)} />`}
-    ${modal && modal.type === 'loan' && html`<${LoanForm} loan=${data.loan} hasEmis=${data.emis.length > 0} onSave=${saveLoan} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'loan' && html`<${LoanForm} loan=${data.loan} landPrice=${data.property.totalCost} hasEmis=${data.emis.length > 0} onSave=${saveLoan} onClose=${() => setModal(null)} />`}
     ${confirm && html`<${Modal} title=${confirm.title} onClose=${() => setConfirm(null)}
         footer=${html`<button className="btn" onClick=${() => setConfirm(null)}>Cancel</button>
           <button className=${'btn ' + (confirm.danger ? 'danger solid' : 'primary')} onClick=${() => { const run = confirm.run; setConfirm(null); run(); }}>${confirm.yes}</button>`}>
