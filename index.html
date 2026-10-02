@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Land Ledger</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2F6B4F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ECEFE7;--surface:#FAFBF7;--ink:#1C2620;--muted:#5A675F;--line:#D1D8CB;
+  --accent:#2F6B4F;--accent-ink:#FFFFFF;--accent-soft:#DAE7DD;
+  --ochre:#9A6B16;--ochre-soft:#F1E5C8;--danger:#A2392A;--danger-soft:#F5DDD7;
+  --hatch:#B9C2B2;--shadow:0 1px 2px rgba(28,38,32,.06),0 8px 24px rgba(28,38,32,.06);
+  color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#131915;--surface:#1A221D;--ink:#E3E9E2;--muted:#97A59C;--line:#2D3931;
+    --accent:#72B592;--accent-ink:#0F1A14;--accent-soft:#213A2D;
+    --ochre:#D8A94F;--ochre-soft:#3A301F;--danger:#E27E6B;--danger-soft:#3E2621;
+    --hatch:#3A4840;--shadow:0 1px 2px rgba(0,0,0,.3);color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131915;--surface:#1A221D;--ink:#E3E9E2;--muted:#97A59C;--line:#2D3931;
+  --accent:#72B592;--accent-ink:#0F1A14;--accent-soft:#213A2D;
+  --ochre:#D8A94F;--ochre-soft:#3A301F;--danger:#E27E6B;--danger-soft:#3E2621;
+  --hatch:#3A4840;--shadow:0 1px 2px rgba(0,0,0,.3);color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 20px 64px}
+h1,h2,h3{margin:0;line-height:1.2}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;padding:8px 0 20px;border-bottom:1px solid var(--line)}
+.top h1{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em}
+.top .sub{color:var(--muted);margin-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.quiet:hover{color:var(--ink);background:var(--bg)}
+.btn.danger{color:var(--danger)}
+.btn.danger.solid{background:var(--danger);border-color:var(--danger);color:#fff}
+.notice{margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--ochre-soft);color:var(--ink);font-size:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(220px,340px) 1fr;gap:clamp(20px,5vw,56px);align-items:center;padding:32px 0 28px}
+@media (max-width:720px){.hero{grid-template-columns:1fr}}
+.plot{margin:0}
+.plot svg{width:100%;height:auto;display:block}
+.plot figcaption{margin-top:8px;color:var(--muted);font-size:14px}
+.plot-unpaid{fill:url(#hatch)}
+.hatch-line{stroke:var(--hatch);stroke-width:2}
+.plot-paid{fill:var(--accent)}
+.plot-edge{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-dasharray:6 4;stroke-linejoin:round}
+.stone{fill:var(--surface);stroke:var(--ink);stroke-width:1.6}
+.fill-rect{transition:y .7s ease,height .7s ease}
+.level{stroke:var(--accent);stroke-width:1.2}
+.plot-label{font-size:11px;fill:var(--muted);font-family:inherit}
+@media (prefers-reduced-motion:reduce){.fill-rect{transition:none}}
+.hero .lede{color:var(--muted);font-weight:600}
+.hero .big{font-size:clamp(34px,6vw,54px);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-top:4px}
+.hero .of{margin-top:8px;font-size:16px;max-width:52ch}
+.hero .of strong{color:var(--danger)}
+.ledger{margin:22px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));border-top:1px solid var(--line)}
+.ledger div{padding:12px 16px 12px 0;border-bottom:1px solid var(--line)}
+.ledger dt{font-size:13px;color:var(--muted)}
+.ledger dd{margin:2px 0 0;font-weight:700;font-size:18px}
+.ledger dd small{font-weight:500;font-size:13px;color:var(--muted)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{background:none;border:0;padding:10px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .count{font-weight:500;color:var(--muted);margin-left:4px}
+.panel{padding-top:24px}
+
+.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:28px}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.box + .box{margin-top:20px}
+.box h2{font-size:17px;font-weight:700;margin-bottom:14px}
+.box .hint{color:var(--muted);font-size:14px}
+
+.bars{display:grid;gap:12px}
+.bar-head{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.bar-head span:last-child{font-weight:600}
+.track{height:8px;border-radius:4px;background:var(--bg);margin-top:5px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.track i.extra{background:var(--ochre)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:14px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:var(--accent);vertical-align:-1px}
+.legend span.extra::before{background:var(--ochre)}
+
+.kv{display:grid;gap:10px}
+.kv div{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:600;text-align:right}
+.alert{padding:10px 12px;border-radius:8px;background:var(--danger-soft);font-size:14px;margin-bottom:14px}
+
+.recent{list-style:none;margin:0;padding:0}
+.recent li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.recent li:first-child{border-top:0;padding-top:0}
+.recent .meta{color:var(--muted);font-size:13px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.toolbar .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:13px;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 14px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:first-child td{border-top:0}
+td.num,th.num{text-align:right;white-space:nowrap}
+td.nowrap{white-space:nowrap}
+td .meta{color:var(--muted);font-size:13px}
+tfoot td{font-weight:700;border-top:2px solid var(--line)}
+tr.paid td{color:var(--muted)}
+tr.overdue td:nth-child(3){color:var(--danger);font-weight:600}
+.row-actions{display:flex;gap:2px;justify-content:flex-end}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.extra{background:var(--ochre-soft);color:var(--ochre)}
+.check{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty p{max-width:44ch;margin:0 auto 14px}
+
+/* forms */
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.field{display:grid;gap:5px;font-size:13px;color:var(--muted);font-weight:500}
+.field.wide{grid-column:1/-1}
+.field input,.field select,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:15px}
+.field textarea{min-height:80px;resize:vertical}
+.field .help{font-weight:400}
+.checkline{display:flex;gap:8px;align-items:flex-start;font-size:14px;grid-column:1/-1}
+.checkline input{margin-top:3px}
+.calc{grid-column:1/-1;padding:10px 12px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+select.filter{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+
+.overlay{position:fixed;inset:0;background:rgba(10,16,12,.45);display:grid;place-items:center;padding:16px;z-index:20;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.modal{background:var(--surface);border-radius:14px;padding:22px;width:100%;max-width:560px;max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h2{font-size:19px;margin-bottom:16px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.modal .err{color:var(--danger);font-size:14px;margin-top:12px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.danger-zone{margin-top:24px;border-color:var(--danger-soft)}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* hero areas */
+.hero{grid-template-areas:"plot head" "plot ledger";align-content:center}
+.hero .plot{grid-area:plot}
+.hero .headline{grid-area:head;align-self:end}
+.hero .ledger{grid-area:ledger;align-self:start}
+@media (max-width:720px){.hero{grid-template-columns:minmax(0,260px) 1fr;grid-template-areas:"plot head" "ledger ledger"}}
+
+/* card lists (phones) */
+.cards{display:grid;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:6px;box-shadow:var(--shadow)}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card .meta{color:var(--muted);font-size:13px}
+.card .row-actions{justify-content:flex-start;margin-left:-10px}
+.card.paid{opacity:.72}
+.card.overdue{border-color:var(--danger)}
+.card.overdue .due{color:var(--danger);font-weight:600}
+.emi-main{display:flex;gap:12px;align-items:center;cursor:pointer;min-width:0}
+.emi-main .check{width:22px;height:22px;flex:none}
+.card-total{display:flex;justify-content:space-between;padding:6px 2px;color:var(--muted);font-size:14px}
+.card-total strong{color:var(--ink)}
+
+/* drive sync */
+.sync{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);padding:0 4px;white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
+.sync i.warn{background:var(--ochre)}
+.sync i.err{background:var(--danger)}
+.notice.conflict{background:var(--danger-soft)}
+.notice .btns{display:flex;gap:8px;flex-wrap:wrap}
+.steps{margin:0 0 14px;padding-left:20px;color:var(--muted);font-size:14px}
+.steps li{margin-bottom:4px}
+code{font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px}
+
+@media (max-width:640px){
+  .wrap{padding:12px 14px 48px}
+  .top{flex-direction:column;align-items:stretch;gap:12px;padding:4px 0 14px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .actions .btn{justify-content:center;padding:10px 12px}
+  .actions .full{grid-column:1/-1}
+  .actions .sync{grid-column:1/-1;justify-content:center}
+  .hero{grid-template-columns:96px 1fr;gap:10px 16px;padding:18px 0 20px}
+  .plot figcaption{font-size:12px;margin-top:4px}
+  .hero .big{font-size:30px}
+  .hero .of{font-size:14px}
+  .hero .of .btn{margin-top:6px}
+  .ledger{grid-template-columns:1fr 1fr;margin-top:6px}
+  .ledger div{padding:10px 10px 10px 0}
+  .ledger dd{font-size:16px}
+  .tab{padding:10px 12px}
+  .panel{padding-top:16px}
+  .box{padding:16px;border-radius:12px}
+  .box + .box{margin-top:14px}
+  .cols{gap:14px}
+  .toolbar .btn.primary{flex:1;justify-content:center}
+  .field input,.field select,.field textarea,select.filter{font-size:16px}
+  select.filter{width:100%}
+  .toolbar .left{flex:1}
+  .overlay{align-items:end;padding:0}
+  .modal{border-radius:16px 16px 0 0;max-height:92vh;padding:18px 16px 0}
+  .modal .foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom,0px));margin-top:12px}
+  .modal .foot .btn{flex:1;justify-content:center;padding:11px}
+  .row-actions .btn.small{padding:8px 10px}
+  .notice{font-size:13px}
+}
+.lock-wrap{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:20px}
+.lock{max-width:380px;width:100%;display:grid;gap:14px}
+.lock svg{width:64px;height:auto}
+.lock h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.lock .err{color:var(--danger);font-size:14px}
+.lock .btn{justify-content:center;padding:11px}
+.pw-fields{display:grid;gap:12px;max-width:360px;margin-bottom:14px}
+.pw-fields .err{color:var(--danger);font-size:14px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const { useState, useEffect, useMemo, useRef } = React;
+const html = htm.bind(React.createElement);
+const STORE_KEY = 'land-ledger:v1';
+
+/* ---------- data model ---------- */
+const CATS = [
+  { id: 'booking', label: 'Booking advance', price: true },
+  { id: 'seller', label: 'Payment to seller', price: true },
+  { id: 'legal', label: 'Legal verification' },
+  { id: 'registration', label: 'Registration & stamp duty' },
+  { id: 'documents', label: 'EC, patta & documents' },
+  { id: 'survey', label: 'Survey & measurement' },
+  { id: 'broker', label: 'Broker commission' },
+  { id: 'loanfees', label: 'Loan processing fees' },
+  { id: 'development', label: 'Fencing & development' },
+  { id: 'other', label: 'Other' },
+];
+const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+const MODES = ['Bank transfer', 'UPI', 'Cheque', 'Demand draft', 'Cash', 'Card'];
+const UNITS = ['cents', 'sq ft', 'acres', 'grounds', 'sq m', 'hectares'];
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const r2 = n => Math.round(n * 100) / 100;
+const pad = n => String(n).padStart(2, '0');
+const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+function addMonths(iso, i) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  const first = new Date(y, m - 1 + i, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return first.getFullYear() + '-' + pad(first.getMonth() + 1) + '-' + pad(Math.min(d, last));
+}
+const inr = n => '₹' + num(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const fdate = iso => {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const blank = () => ({
+  app: 'land-ledger', version: 1, updatedAt: null,
+  property: { name: '', location: '', surveyNo: '', area: '', areaUnit: 'cents', totalCost: '', seller: '', agreementDate: '', notes: '' },
+  loan: { enabled: false, lender: '', principal: '', rate: '', tenureMonths: '', emi: '', startDate: '', paidToSeller: true },
+  payments: [], emis: [],
+});
+
+function normalize(raw) {
+  if (!raw || typeof raw !== 'object' || (!raw.property && !Array.isArray(raw.payments)))
+    throw new Error('This file is not a Land Ledger JSON export.');
+  const b = blank();
+  return {
+    ...b, ...raw,
+    property: { ...b.property, ...(raw.property || {}) },
+    loan: { ...b.loan, ...(raw.loan || {}) },
+    payments: (Array.isArray(raw.payments) ? raw.payments : []).map(p => ({
+      id: p.id || uid(), date: p.date || '', category: catById[p.category] ? p.category : 'other',
+      description: p.description || '', paidTo: p.paidTo || '', mode: p.mode || '', reference: p.reference || '',
+      amount: num(p.amount),
+    })),
+    emis: (Array.isArray(raw.emis) ? raw.emis : []).map((e, i) => ({
+      id: e.id || uid(), no: e.no || i + 1, dueDate: e.dueDate || '', amount: num(e.amount),
+      principal: num(e.principal), interest: num(e.interest), balance: num(e.balance),
+      status: e.status === 'paid' ? 'paid' : 'pending', paidDate: e.paidDate || '', note: e.note || '',
+    })),
+  };
+}
+
+function calcEmi(P, rate, n) {
+  P = num(P); n = Math.round(num(n)); const r = num(rate) / 1200;
+  if (!P || !n) return 0;
+  if (!r) return r2(P / n);
+  const f = Math.pow(1 + r, n);
+  return r2(P * r * f / (f - 1));
+}
+
+function buildSchedule(loan, old) {
+  const P = num(loan.principal), n = Math.round(num(loan.tenureMonths)), r = num(loan.rate) / 1200;
+  if (!P || !n || !loan.startDate) throw new Error('Enter the loan amount, tenure and first EMI date to create a schedule.');
+  const emi = num(loan.emi) || calcEmi(P, loan.rate, n);
+  if (emi <= r2(P * r)) throw new Error('The EMI is too low to cover the monthly interest. Check the EMI amount or leave it blank to calculate it.');
+  let bal = P; const rows = [];
+  for (let i = 0; i < n && bal > 0; i++) {
+    const interest = r2(bal * r);
+    let principal = r2(emi - interest), amount = emi;
+    if (i === n - 1 || principal >= bal) { principal = r2(bal); amount = r2(principal + interest); }
+    bal = r2(bal - principal);
+    const prev = old[i];
+    const paid = prev && prev.status === 'paid';
+    rows.push({ id: prev ? prev.id : uid(), no: i + 1, dueDate: addMonths(loan.startDate, i), amount, principal, interest,
+      balance: Math.max(0, bal), status: paid ? 'paid' : 'pending', paidDate: paid ? prev.paidDate : '', note: prev ? prev.note : '' });
+  }
+  return rows;
+}
+
+function summarize(data) {
+  const byCat = {}; CATS.forEach(c => byCat[c.id] = 0);
+  let totalPayments = 0;
+  data.payments.forEach(p => { byCat[p.category] = (byCat[p.category] || 0) + num(p.amount); totalPayments += num(p.amount); });
+  const towardDirect = CATS.filter(c => c.price).reduce((a, c) => a + byCat[c.id], 0);
+  const additional = totalPayments - towardDirect;
+  const L = data.loan;
+  const loanToSeller = L.enabled && L.paidToSeller ? num(L.principal) : 0;
+  const towardPrice = towardDirect + loanToSeller;
+  const totalCost = num(data.property.totalCost);
+  const balance = Math.max(0, totalCost - towardPrice);
+  const paidEmis = data.emis.filter(e => e.status === 'paid');
+  const emiPaid = paidEmis.reduce((a, e) => a + num(e.amount), 0);
+  const principalPaid = paidEmis.reduce((a, e) => a + num(e.principal), 0);
+  const interestPaid = paidEmis.reduce((a, e) => a + num(e.interest), 0);
+  const scheduledInterest = data.emis.reduce((a, e) => a + num(e.interest), 0);
+  const loanOutstanding = L.enabled ? Math.max(0, num(L.principal) - principalPaid) : 0;
+  const today = todayISO();
+  const pending = data.emis.filter(e => e.status !== 'paid').sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  const overdue = pending.filter(e => e.dueDate && e.dueDate < today);
+  const next = pending.find(e => !e.dueDate || e.dueDate >= today) || null;
+  return {
+    byCat, totalPayments, towardDirect, additional, loanToSeller, towardPrice, totalCost, balance,
+    emiPaid, emiPaidCount: paidEmis.length, principalPaid, interestPaid, scheduledInterest, loanOutstanding,
+    pocket: totalPayments + emiPaid, overdue, next,
+    projected: totalCost + additional + scheduledInterest,
+    pct: totalCost > 0 ? Math.min(1, towardPrice / totalCost) : 0,
+  };
+}
+
+/* ---------- files ---------- */
+const downloadsReady = (window.claude && window.claude.use) ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+
+async function offerFile(filename, data, mime) {
+  const dl = await downloadsReady;
+  if (dl) {
+    try { await dl.save({ filename, data }); return 'saved'; }
+    catch (e) {
+      if (e && e.code === 'declined') return 'declined';
+      if (e && e.code === 'rate_limited') throw new Error('A save prompt is already open. Finish that one first.');
+      if (!e || !['unavailable', 'not_granted', 'capability_disabled', 'capability_removed'].includes(e.code))
+        throw new Error((e && e.message) || 'The file could not be saved.');
+    }
+  }
+  const blob = new Blob([data], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return 'saved';
+}
+
+const slug = s => (s || 'land').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'land';
+const serial = iso => {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y) return iso;
+  return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
+};
+
+function formatSheet(ws, { money = [], dates = [], widths = [] }) {
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell || cell.t !== 'n') continue;
+      if (money.includes(C)) cell.z = '#,##0.00';
+      if (dates.includes(C)) cell.z = 'dd-mmm-yyyy';
+    }
+  }
+  ws['!cols'] = widths.map(w => ({ wch: w }));
+}
+
+function buildWorkbook(data, s) {
+  const P = data.property, L = data.loan;
+  const wb = XLSX.utils.book_new();
+
+  const summary = [
+    ['Land purchase summary'],
+    ['Generated on', fdate(todayISO())],
+    [],
+    ['Property', P.name], ['Location', P.location], ['Survey number', P.surveyNo],
+    ['Area', P.area ? P.area + ' ' + P.areaUnit : ''], ['Seller', P.seller], ['Agreement date', P.agreementDate ? fdate(P.agreementDate) : ''],
+    [],
+    ['Agreed land price (₹)', s.totalCost],
+    ['Paid toward land price (₹)', s.towardPrice],
+    ['   Paid directly (₹)', s.towardDirect],
+    ['   Paid through loan (₹)', s.loanToSeller],
+    ['Balance due to seller (₹)', s.balance],
+    ['Additional costs (₹)', s.additional],
+    [],
+    ['Lender', L.enabled ? L.lender : '—'],
+    ['Loan amount (₹)', L.enabled ? num(L.principal) : 0],
+    ['Interest rate', L.enabled ? num(L.rate) + '% per year' : '—'],
+    ['Tenure', L.enabled ? Math.round(num(L.tenureMonths)) + ' months' : '—'],
+    ['EMIs paid', s.emiPaidCount + ' of ' + data.emis.length],
+    ['EMI amount paid (₹)', s.emiPaid],
+    ['   Principal repaid (₹)', s.principalPaid],
+    ['   Interest paid (₹)', s.interestPaid],
+    ['Loan outstanding (₹)', s.loanOutstanding],
+    [],
+    ['Total spent from your pocket (₹)', s.pocket],
+    ['Projected total cost incl. interest (₹)', s.projected],
+    [],
+    ['Spending by category', 'Amount (₹)', 'Counts toward land price'],
+    ...CATS.map(c => [c.label, s.byCat[c.id], c.price ? 'Yes' : 'No']),
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(summary);
+  formatSheet(ws1, { money: [1], widths: [38, 22, 24] });
+  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+  const pays = [...data.payments].sort((a, b) => (a.date > b.date ? 1 : -1));
+  const payRows = [['Date', 'Category', 'Description', 'Paid to', 'Mode', 'Reference', 'Amount (₹)', 'Counts toward land price']];
+  pays.forEach(p => payRows.push([serial(p.date), catById[p.category].label, p.description, p.paidTo, p.mode, p.reference, num(p.amount), catById[p.category].price ? 'Yes' : 'No']));
+  payRows.push([], ['', '', '', '', '', 'Total', s.totalPayments, '']);
+  const ws2 = XLSX.utils.aoa_to_sheet(payRows);
+  formatSheet(ws2, { money: [6], dates: [0], widths: [13, 26, 34, 22, 15, 18, 16, 22] });
+  XLSX.utils.book_append_sheet(wb, ws2, 'Payments');
+
+  const emiRows = [['EMI no.', 'Due date', 'EMI (₹)', 'Principal (₹)', 'Interest (₹)', 'Balance after (₹)', 'Status', 'Paid on', 'Note']];
+  data.emis.forEach(e => emiRows.push([e.no, serial(e.dueDate), num(e.amount), num(e.principal), num(e.interest), num(e.balance), e.status === 'paid' ? 'Paid' : 'Pending', serial(e.paidDate), e.note]));
+  const tot = k => data.emis.reduce((a, e) => a + num(e[k]), 0);
+  emiRows.push([], ['Total', '', tot('amount'), tot('principal'), tot('interest'), '', '', '', '']);
+  const ws3 = XLSX.utils.aoa_to_sheet(emiRows);
+  formatSheet(ws3, { money: [2, 3, 4, 5], dates: [1, 7], widths: [9, 13, 14, 14, 14, 17, 10, 13, 28] });
+  XLSX.utils.book_append_sheet(wb, ws3, 'EMI schedule');
+
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+}
+
+/* ---------- Google Drive sync (optional) ----------
+   Paste your OAuth client ID here to turn on Drive sync (see README).
+   The client ID is not a secret; it is safe in a public GitHub repo. */
+const GOOGLE_CLIENT_ID = '101358779977-o88ha91nqmtmmsjhj3gurah0fp32fiq4.apps.googleusercontent.com';
+const DRIVE_FILE_NAME = 'land-ledger.json';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const LINK_KEY = STORE_KEY + ':drive';
+
+const Drive = {
+  ready: null, token: null, expires: 0,
+  load() {
+    if (!GOOGLE_CLIENT_ID) return Promise.resolve(false);
+    if (this.ready) return this.ready;
+    this.ready = new Promise(res => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+      s.onload = () => res(!!(window.google && google.accounts && google.accounts.oauth2));
+      s.onerror = () => res(false);
+      document.head.appendChild(s);
+      setTimeout(() => res(false), 10000);
+    });
+    return this.ready;
+  },
+  hasToken() { return !!this.token && Date.now() < this.expires - 60000; },
+  signIn() {
+    return new Promise((resolve, reject) => {
+      if (this.hasToken()) return resolve(this.token);
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE,
+        callback: r => {
+          if (r.error) return reject(new Error('Google sign-in failed (' + r.error + ').'));
+          this.token = r.access_token; this.expires = Date.now() + (r.expires_in || 3600) * 1000; resolve(this.token);
+        },
+        error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'The Google sign-in window was closed.' : 'Google sign-in was blocked. Allow pop-ups for this site and try again.')),
+      });
+      client.requestAccessToken({ prompt: '' });
+    });
+  },
+  signOut() { if (this.token && window.google) google.accounts.oauth2.revoke(this.token, () => {}); this.token = null; this.expires = 0; },
+  async api(url, opts = {}) {
+    const expired = () => { const e = new Error('Drive session expired. Tap Sync with Drive to reconnect.'); e.code = 'auth'; return e; };
+    if (!this.hasToken()) throw expired();
+    const r = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + this.token } });
+    if (r.status === 401) { this.token = null; throw expired(); }
+    if (!r.ok) { const e = new Error('Google Drive returned an error (' + r.status + ').'); e.status = r.status; throw e; }
+    return r;
+  },
+  async find() {
+    const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+    const j = await (await this.api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&orderBy=modifiedTime desc&fields=files(id,modifiedTime)`)).json();
+    return (j.files && j.files[0]) || null;
+  },
+  async meta(id) { return (await this.api(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,modifiedTime,trashed`)).json(); },
+  async read(id) { return (await this.api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`)).json(); },
+  async create(data) {
+    const b = 'll' + uid();
+    const body = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name: DRIVE_FILE_NAME, mimeType: 'application/json' })}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(data, null, 2)}\r\n--${b}--`;
+    return (await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime',
+      { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body })).json();
+  },
+  async write(id, data) {
+    return (await this.api(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&fields=id,modifiedTime`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) })).json();
+  },
+};
+
+/* ---------- app lock: passphrase + AES-GCM encryption of this device's copy ---------- */
+const CRYPTO_OK = !!(window.crypto && window.crypto.subtle && window.isSecureContext !== false);
+const LOCK_AFTER_MS = 10 * 60 * 1000;
+const te = new TextEncoder(), td = new TextDecoder();
+const b64 = buf => { const a = new Uint8Array(buf); let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', te.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function makeLock(pass) { const salt = crypto.getRandomValues(new Uint8Array(16)); return { key: await deriveKey(pass, salt), salt: b64(salt) }; }
+async function sealData(lock, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, lock.key, te.encode(JSON.stringify(obj)));
+  return { enc: 1, alg: 'AES-GCM/PBKDF2-SHA256-310k', salt: lock.salt, iv: b64(iv), ct: b64(ct) };
+}
+async function openData(pass, blob) {
+  const key = await deriveKey(pass, unb64(blob.salt));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(blob.iv) }, key, unb64(blob.ct));
+  return { data: normalize(JSON.parse(td.decode(pt))), lock: { key, salt: blob.salt } };
+}
+async function checkPass(pass) {
+  try { const blob = JSON.parse(localStorage.getItem(STORE_KEY)); if (!blob || !blob.enc) return false; await openData(pass, blob); return true; }
+  catch (e) { return false; }
+}
+
+function LockScreen({ blob, onOpen, onWipe }) {
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const open = async () => {
+    if (!pass || busy) return;
+    setBusy(true); setErr('');
+    try { const r = await openData(pass, blob); onOpen(r.data, r.lock); }
+    catch (e) { setErr('That passphrase is not correct.'); setBusy(false); }
+  };
+  return html`<div className="lock-wrap"><div className="lock box">
+    <svg viewBox="0 0 240 204" aria-hidden="true"><polygon points=${PTS} className="plot-edge" />${PLOT.map(([x, y], i) => html`<rect key=${i} className="stone" x=${x - 5} y=${y - 5} width="10" height="10" />`)}</svg>
+    <h1>Land Ledger is locked</h1>
+    <p className="hint">Enter your passphrase to open it.</p>
+    <label className="field">Passphrase
+      <input type="password" autoFocus autoComplete="current-password" value=${pass} onChange=${e => setPass(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') open(); }} />
+    </label>
+    ${err && html`<p className="err" role="alert">${err}</p>`}
+    <button className="btn primary" onClick=${open} disabled=${busy || !pass}>${busy ? 'Unlocking…' : 'Unlock'}</button>
+    ${!forgot
+      ? html`<button className="btn quiet" onClick=${() => setForgot(true)}>Forgot passphrase?</button>`
+      : html`<div className="notice conflict"><span>A forgotten passphrase can't be recovered. You can clear this device, then load your data again from Google Drive or an exported JSON file.</span>
+          <div className="btns"><button className="btn small" onClick=${() => setForgot(false)}>Cancel</button><button className="btn small danger solid" onClick=${onWipe}>Clear this device</button></div></div>`}
+  </div></div>`;
+}
+
+function LockSettings({ lock, onEnable, onDisable, onLockNow }) {
+  const [mode, setMode] = useState(null);
+  const [cur, setCur] = useState(''), [a, setA] = useState(''), [b, setB] = useState('');
+  const [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+  const close = () => { setMode(null); setCur(''); setA(''); setB(''); setErr(''); };
+  const submit = async () => {
+    setErr('');
+    if (mode !== 'off') {
+      if (a.length < 6) return setErr('Use at least 6 characters.');
+      if (a !== b) return setErr("The two passphrases don't match.");
+    }
+    setBusy(true);
+    try {
+      if (mode !== 'set' && !(await checkPass(cur))) return setErr('The current passphrase is not correct.');
+      if (mode === 'off') await onDisable(); else await onEnable(a);
+      close();
+    } finally { setBusy(false); }
+  };
+  if (!CRYPTO_OK) return html`<section className="box"><h2>App lock</h2><p className="hint">App lock needs the app to be opened over https, such as from GitHub Pages.</p></section>`;
+  return html`<section className="box">
+    <h2>App lock</h2>
+    <p className="hint" style=${{ marginBottom: '14px' }}>${lock
+      ? 'On. The app locks after 10 minutes without use, and the copy saved on this device is encrypted with your passphrase.'
+      : 'Off. Anyone who opens this app on this device and browser can see your data. Set a passphrase to lock the app and encrypt the copy saved here.'}</p>
+    ${mode ? html`<div className="pw-fields">
+        ${mode !== 'set' && html`<label className="field">Current passphrase<input type="password" autoComplete="current-password" value=${cur} onChange=${e => setCur(e.target.value)} /></label>`}
+        ${mode !== 'off' && html`<label className="field">New passphrase<input type="password" autoComplete="new-password" value=${a} onChange=${e => setA(e.target.value)} /></label>`}
+        ${mode !== 'off' && html`<label className="field">Type it again<input type="password" autoComplete="new-password" value=${b} onChange=${e => setB(e.target.value)} /></label>`}
+        ${mode !== 'off' && html`<span className="hint" style=${{ fontSize: '13px' }}>There is no reset. If you forget it, you'll need your Drive file or a JSON export to get your data back.</span>`}
+        ${err && html`<p className="err" role="alert">${err}</p>`}
+        <div className="actions">
+          <button className="btn" onClick=${close}>Cancel</button>
+          <button className=${'btn ' + (mode === 'off' ? 'danger' : 'primary')} onClick=${submit} disabled=${busy}>${busy ? 'Working…' : mode === 'set' ? 'Turn on app lock' : mode === 'change' ? 'Change passphrase' : 'Turn off app lock'}</button>
+        </div>
+      </div>`
+      : html`<div className="actions">${lock
+        ? html`<button className="btn primary" onClick=${onLockNow}>Lock now</button><button className="btn" onClick=${() => setMode('change')}>Change passphrase</button><button className="btn quiet danger" onClick=${() => setMode('off')}>Turn off app lock</button>`
+        : html`<button className="btn primary full" onClick=${() => setMode('set')}>Set a passphrase</button>`}</div>`}
+  </section>`;
+}
+
+function useIsMobile() {
+  const q = '(max-width: 640px)';
+  const [m, setM] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(q), f = e => setM(e.matches);
+    mq.addEventListener('change', f); return () => mq.removeEventListener('change', f);
+  }, []);
+  return m;
+}
+
+/* ---------- small components ---------- */
+const PLOT = [[34, 44], [188, 18], [224, 148], [72, 186], [16, 118]];
+const PTS = PLOT.map(p => p.join(',')).join(' ');
+function PlotFigure({ pct, surveyNo }) {
+  const top = 18, bottom = 186, y0 = bottom - pct * (bottom - top);
+  return html`
+    <figure className="plot">
+      <svg viewBox="0 0 240 204" role="img" aria-label=${Math.round(pct * 100) + ' percent of the land price paid'}>
+        <defs>
+          <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="7" className="hatch-line" />
+          </pattern>
+          <clipPath id="paidClip"><rect className="fill-rect" x="0" y=${y0} width="240" height=${204 - y0} /></clipPath>
+        </defs>
+        <polygon points=${PTS} className="plot-unpaid" />
+        <polygon points=${PTS} className="plot-paid" clipPath="url(#paidClip)" />
+        ${pct > 0.01 && pct < 0.99 && html`<line className="level" x1="0" x2="240" y1=${y0} y2=${y0} strokeDasharray="2 3" />`}
+        <polygon points=${PTS} className="plot-edge" />
+        ${PLOT.map(([x, y], i) => html`<rect key=${i} className="stone" x=${x - 4} y=${y - 4} width="8" height="8" />`)}
+        ${surveyNo && html`<text className="plot-label" x="120" y="202" textAnchor="middle">S.No. ${surveyNo}</text>`}
+      </svg>
+      <figcaption>${Math.round(pct * 100)}% of the land price paid</figcaption>
+    </figure>`;
+}
+
+function Modal({ title, onClose, children, footer }) {
+  useEffect(() => {
+    const k = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+  }, [onClose]);
+  return html`
+    <div className="overlay" onMouseDown=${e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label=${title}>
+        <h2>${title}</h2>
+        ${children}
+        <div className="foot">${footer}</div>
+      </div>
+    </div>`;
+}
+
+function Field({ label, wide, help, children }) {
+  return html`<label className=${'field' + (wide ? ' wide' : '')}>${label}${children}${help && html`<span className="help">${help}</span>`}</label>`;
+}
+
+/* ---------- forms ---------- */
+function PaymentForm({ item, onSave, onClose }) {
+  const [f, setF] = useState(item || { date: todayISO(), category: 'booking', amount: '', description: '', paidTo: '', mode: 'Bank transfer', reference: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const save = () => {
+    if (!f.date) return setErr('Enter the payment date.');
+    if (!(num(f.amount) > 0)) return setErr('Enter an amount greater than zero.');
+    onSave({ ...f, id: f.id || uid(), amount: num(f.amount) });
+  };
+  return html`<${Modal} title=${item ? 'Edit payment' : 'Add payment'} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : 'Add payment'}</button>`}>
+    <div className="fields">
+      <${Field} label="Date"><input type="date" value=${f.date} onChange=${set('date')} /><//>
+      <${Field} label="Amount (₹)"><input type="number" min="0" step="any" inputMode="decimal" value=${f.amount} onChange=${set('amount')} autoFocus /><//>
+      <${Field} label="What was it for" wide
+        help=${catById[f.category].price ? 'Counts toward the land price.' : 'Counted as an additional cost, on top of the land price.'}>
+        <select value=${f.category} onChange=${set('category')}>${CATS.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}</select>
+      <//>
+      <${Field} label="Description" wide><input value=${f.description} onChange=${set('description')} placeholder="e.g. Second installment as per agreement" /><//>
+      <${Field} label="Paid to"><input value=${f.paidTo} onChange=${set('paidTo')} placeholder="Person or office" /><//>
+      <${Field} label="Payment mode"><select value=${f.mode} onChange=${set('mode')}>${MODES.map(m => html`<option key=${m}>${m}</option>`)}</select><//>
+      <${Field} label="Reference" wide><input value=${f.reference} onChange=${set('reference')} placeholder="UTR, cheque or receipt number" /><//>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function LoanForm({ loan, hasEmis, onSave, onClose }) {
+  const [f, setF] = useState({ ...loan, enabled: true });
+  const [gen, setGen] = useState(!hasEmis);
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+  const auto = calcEmi(f.principal, f.rate, f.tenureMonths);
+  const save = () => {
+    if (!(num(f.principal) > 0)) return setErr('Enter the loan amount.');
+    if (gen) {
+      try { buildSchedule(f, []); } catch (e) { return setErr(e.message); }
+    }
+    onSave(f, gen);
+  };
+  return html`<${Modal} title="Loan details" onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save loan</button>`}>
+    <div className="fields">
+      <${Field} label="Lender" wide><input value=${f.lender} onChange=${set('lender')} placeholder="Bank or finance company" /><//>
+      <${Field} label="Loan amount (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
+      <${Field} label="Interest rate (% per year)"><input type="number" min="0" step="any" value=${f.rate} onChange=${set('rate')} /><//>
+      <${Field} label="Tenure (months)"><input type="number" min="1" step="1" value=${f.tenureMonths} onChange=${set('tenureMonths')} /><//>
+      <${Field} label="First EMI date"><input type="date" value=${f.startDate} onChange=${set('startDate')} /><//>
+      <${Field} label="EMI amount (₹)" wide help="Leave blank to calculate it from the amount, rate and tenure.">
+        <input type="number" min="0" step="any" value=${f.emi} onChange=${set('emi')} placeholder=${auto ? 'Calculated: ' + inr(auto) : ''} />
+      <//>
+      ${auto > 0 && html`<p className="calc">EMI at these terms: <strong>${inr(num(f.emi) || auto)}</strong> a month, about ${inr(r2((num(f.emi) || auto) * Math.round(num(f.tenureMonths)) - num(f.principal)))} in total interest.</p>`}
+      <label className="checkline"><input type="checkbox" className="check" checked=${!!f.paidToSeller} onChange=${set('paidToSeller')} /> The loan amount was paid to the seller, so it counts toward the land price.</label>
+      <label className="checkline"><input type="checkbox" className="check" checked=${gen} onChange=${e => setGen(e.target.checked)} />
+        ${hasEmis ? 'Rebuild the EMI schedule from these terms. EMIs already marked paid stay paid.' : 'Create the EMI schedule from these terms.'}</label>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function EmiForm({ item, nextNo, onSave, onClose }) {
+  const [f, setF] = useState(item || { no: nextNo, dueDate: todayISO(), amount: '', principal: '', interest: '', balance: '', status: 'pending', paidDate: '', note: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const save = () => {
+    if (!f.dueDate) return setErr('Enter the due date.');
+    if (!(num(f.amount) > 0)) return setErr('Enter the EMI amount.');
+    onSave({ ...f, id: f.id || uid(), no: Math.round(num(f.no)) || nextNo, amount: num(f.amount), principal: num(f.principal), interest: num(f.interest), balance: num(f.balance),
+      paidDate: f.status === 'paid' ? (f.paidDate || todayISO()) : '' });
+  };
+  return html`<${Modal} title=${item ? 'Edit EMI' : 'Add EMI'} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : 'Add EMI'}</button>`}>
+    <div className="fields">
+      <${Field} label="EMI no."><input type="number" min="1" value=${f.no} onChange=${set('no')} /><//>
+      <${Field} label="Due date"><input type="date" value=${f.dueDate} onChange=${set('dueDate')} /><//>
+      <${Field} label="EMI amount (₹)"><input type="number" min="0" step="any" value=${f.amount} onChange=${set('amount')} /><//>
+      <${Field} label="Principal part (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
+      <${Field} label="Interest part (₹)"><input type="number" min="0" step="any" value=${f.interest} onChange=${set('interest')} /><//>
+      <${Field} label="Balance after (₹)"><input type="number" min="0" step="any" value=${f.balance} onChange=${set('balance')} /><//>
+      <${Field} label="Status"><select value=${f.status} onChange=${set('status')}><option value="pending">Pending</option><option value="paid">Paid</option></select><//>
+      ${f.status === 'paid' && html`<${Field} label="Paid on"><input type="date" value=${f.paidDate || todayISO()} onChange=${set('paidDate')} /><//>`}
+      <${Field} label="Note" wide><input value=${f.note} onChange=${set('note')} placeholder="e.g. Paid with penalty" /><//>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+/* ---------- tabs ---------- */
+function Overview({ data, s, go }) {
+  const max = Math.max(1, ...CATS.map(c => s.byCat[c.id]), s.loanToSeller);
+  const used = CATS.filter(c => s.byCat[c.id] > 0);
+  const recent = [...data.payments].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
+  return html`<div className="cols">
+    <div>
+      <section className="box">
+        <h2>Where the money went</h2>
+        ${used.length === 0 && s.loanToSeller === 0
+          ? html`<div className="empty"><p>Nothing recorded yet. Add your booking advance or any other payment to see the breakdown.</p><button className="btn primary" onClick=${() => go('payments', true)}>Add payment</button></div>`
+          : html`
+            <div className="legend"><span>Toward land price</span><span className="extra">Additional cost</span></div>
+            <div className="bars">
+              ${s.loanToSeller > 0 && html`<div><div className="bar-head"><span>Loan paid to seller</span><span>${inr(s.loanToSeller)}</span></div><div className="track"><i style=${{ width: (s.loanToSeller / max * 100) + '%' }} /></div></div>`}
+              ${used.map(c => html`<div key=${c.id}>
+                <div className="bar-head"><span>${c.label}</span><span>${inr(s.byCat[c.id])}</span></div>
+                <div className="track"><i className=${c.price ? '' : 'extra'} style=${{ width: (s.byCat[c.id] / max * 100) + '%' }} /></div>
+              </div>`)}
+            </div>`}
+      </section>
+      <section className="box">
+        <h2>Recent payments</h2>
+        ${recent.length === 0 ? html`<p className="hint">No payments yet.</p>` : html`
+          <ul className="recent">${recent.map(p => html`<li key=${p.id}>
+            <div><div>${p.description || catById[p.category].label}</div><div className="meta">${fdate(p.date)}, ${catById[p.category].label}</div></div>
+            <strong>${inr(p.amount)}</strong></li>`)}</ul>`}
+      </section>
+    </div>
+    <div>
+      <section className="box">
+        <h2>Loan and EMIs</h2>
+        ${!data.loan.enabled && data.emis.length === 0
+          ? html`<p className="hint" style=${{ marginBottom: '14px' }}>No loan added. If you took a loan for this land, add it to track every EMI.</p><button className="btn" onClick=${() => go('emis')}>Set up loan</button>`
+          : html`
+            ${s.overdue.length > 0 && html`<p className="alert">${s.overdue.length} EMI${s.overdue.length > 1 ? 's are' : ' is'} past due and not marked paid.</p>`}
+            <dl className="kv">
+              <div><dt>Next EMI</dt><dd>${s.next ? inr(s.next.amount) + ' on ' + fdate(s.next.dueDate) : 'None pending'}</dd></div>
+              <div><dt>EMIs paid</dt><dd>${s.emiPaidCount} of ${data.emis.length}</dd></div>
+              <div><dt>Paid in EMIs</dt><dd>${inr(s.emiPaid)}</dd></div>
+              <div><dt>Interest paid so far</dt><dd>${inr(s.interestPaid)}</dd></div>
+              <div><dt>Loan outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+              <div><dt>Total interest over the loan</dt><dd>${inr(s.scheduledInterest)}</dd></div>
+            </dl>`}
+      </section>
+      <section className="box">
+        <h2>Full cost of this land</h2>
+        <dl className="kv">
+          <div><dt>Agreed land price</dt><dd>${inr(s.totalCost)}</dd></div>
+          <div><dt>Additional costs so far</dt><dd>${inr(s.additional)}</dd></div>
+          <div><dt>Loan interest (full schedule)</dt><dd>${inr(s.scheduledInterest)}</dd></div>
+          <div style=${{ borderTop: '1px solid var(--line)', paddingTop: '10px' }}><dt>Projected total</dt><dd>${inr(s.projected)}</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>`;
+}
+
+function Payments({ data, onAdd, onEdit, onDelete }) {
+  const [filter, setFilter] = useState('all');
+  const rows = [...data.payments].filter(p => filter === 'all' || (filter === 'price' ? catById[p.category].price : filter === 'extra' ? !catById[p.category].price : p.category === filter))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const total = rows.reduce((a, p) => a + num(p.amount), 0);
+  const mobile = useIsMobile();
+  const actions = p => html`<div className="row-actions"><button className="btn quiet small" onClick=${() => onEdit(p)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDelete(p)}>Delete</button></div>`;
+  const list = mobile ? html`<div className="cards">
+      ${rows.map(p => html`<article key=${p.id} className="card">
+        <div className="card-top"><span className=${'pill' + (catById[p.category].price ? '' : ' extra')}>${catById[p.category].label}</span><strong>${inr(p.amount)}</strong></div>
+        ${p.description && html`<div>${p.description}</div>`}
+        <div className="meta">${[fdate(p.date), p.mode, p.paidTo && 'To ' + p.paidTo, p.reference && 'Ref ' + p.reference].filter(Boolean).join(', ')}</div>
+        ${actions(p)}
+      </article>`)}
+      <div className="card-total"><span>${rows.length} payment${rows.length === 1 ? '' : 's'}</span><strong>${inr(total)}</strong></div>
+    </div>` : null;
+  return html`<div>
+    <div className="toolbar">
+      <div className="left">
+        <label className="visually-hidden" htmlFor="pf">Filter payments</label>
+        <select id="pf" className="filter" value=${filter} onChange=${e => setFilter(e.target.value)}>
+          <option value="all">All payments</option>
+          <option value="price">Toward land price</option>
+          <option value="extra">Additional costs</option>
+          ${CATS.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}
+        </select>
+      </div>
+      <button className="btn primary" onClick=${onAdd}>Add payment</button>
+    </div>
+    ${data.payments.length === 0
+      ? html`<div className="box empty"><p>Record every rupee you spend on this land: the booking advance, payments to the seller, legal checks, registration, broker fees and so on.</p><button className="btn primary" onClick=${onAdd}>Add your first payment</button></div>`
+      : mobile ? list
+      : html`<div className="table-wrap"><table>
+          <thead><tr><th>Date</th><th>For</th><th>Details</th><th>Mode</th><th className="num">Amount</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>${rows.map(p => html`<tr key=${p.id}>
+            <td className="nowrap">${fdate(p.date)}</td>
+            <td><span className=${'pill' + (catById[p.category].price ? '' : ' extra')}>${catById[p.category].label}</span></td>
+            <td>${p.description || '—'}${(p.paidTo || p.reference) && html`<div className="meta">${[p.paidTo && 'To ' + p.paidTo, p.reference && 'Ref ' + p.reference].filter(Boolean).join(', ')}</div>`}</td>
+            <td className="nowrap">${p.mode || '—'}</td>
+            <td className="num"><strong>${inr(p.amount)}</strong></td>
+            <td><div className="row-actions"><button className="btn quiet small" onClick=${() => onEdit(p)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDelete(p)}>Delete</button></div></td>
+          </tr>`)}</tbody>
+          <tfoot><tr><td colSpan="4">${rows.length} payment${rows.length === 1 ? '' : 's'}</td><td className="num">${inr(total)}</td><td></td></tr></tfoot>
+        </table></div>`}
+  </div>`;
+}
+
+function Emis({ data, s, onLoan, onAddEmi, onEditEmi, onDeleteEmi, onToggle, onRebuild }) {
+  const L = data.loan, today = todayISO();
+  const [show, setShow] = useState('all');
+  const mobile = useIsMobile();
+  const rows = [...data.emis].filter(e => show === 'all' || (show === 'paid' ? e.status === 'paid' : e.status !== 'paid'))
+    .sort((a, b) => (a.dueDate > b.dueDate ? 1 : a.dueDate < b.dueDate ? -1 : a.no - b.no));
+  const emiCards = html`<div className="cards">
+    ${rows.map(e => {
+      const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
+      return html`<article key=${e.id} className=${'card' + (e.status === 'paid' ? ' paid' : overdue ? ' overdue' : '')}>
+        <div className="card-top">
+          <label className="emi-main">
+            <input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => onToggle(e)} aria-label=${'Mark EMI ' + e.no + ' paid'} />
+            <span><strong>EMI ${e.no}</strong><span className="meta due" style=${{ display: 'block' }}>${e.status === 'paid' ? 'Paid ' + fdate(e.paidDate) : (overdue ? 'Overdue, was due ' : 'Due ') + fdate(e.dueDate)}</span></span>
+          </label>
+          <strong>${inr(e.amount)}</strong>
+        </div>
+        <div className="meta">Principal ${inr(e.principal)}, interest ${inr(e.interest)}, balance ${inr(e.balance)}${e.note ? '. ' + e.note : ''}</div>
+        <div className="row-actions"><button className="btn quiet small" onClick=${() => onEditEmi(e)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDeleteEmi(e)}>Delete</button></div>
+      </article>`;
+    })}
+    <div className="card-total"><span>${rows.length} EMI${rows.length === 1 ? '' : 's'} shown</span><strong>${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</strong></div>
+  </div>`;
+  return html`<div>
+    <section className="box" style=${{ marginBottom: '20px' }}>
+      <div className="toolbar" style=${{ marginBottom: L.enabled ? '14px' : 0 }}>
+        <h2 style=${{ margin: 0 }}>${L.enabled ? (L.lender || 'Loan') : 'No loan added'}</h2>
+        <div className="left">
+          ${L.enabled && html`<button className="btn" onClick=${onRebuild}>Rebuild schedule</button>`}
+          <button className=${'btn' + (L.enabled ? '' : ' primary')} onClick=${onLoan}>${L.enabled ? 'Edit loan' : 'Set up loan'}</button>
+        </div>
+      </div>
+      ${L.enabled && html`<dl className="kv" style=${{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', columnGap: '28px' }}>
+        <div><dt>Loan amount</dt><dd>${inr(L.principal)}</dd></div>
+        <div><dt>Interest rate</dt><dd>${num(L.rate)}% a year</dd></div>
+        <div><dt>Tenure</dt><dd>${Math.round(num(L.tenureMonths))} months</dd></div>
+        <div><dt>EMI</dt><dd>${inr(num(L.emi) || calcEmi(L.principal, L.rate, L.tenureMonths))}</dd></div>
+        <div><dt>Paid so far</dt><dd>${inr(s.emiPaid)}</dd></div>
+        <div><dt>Outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+      </dl>`}
+    </section>
+    <div className="toolbar">
+      <div className="left">
+        <label className="visually-hidden" htmlFor="ef">Show EMIs</label>
+        <select id="ef" className="filter" value=${show} onChange=${e => setShow(e.target.value)}>
+          <option value="all">All EMIs</option><option value="pending">Pending</option><option value="paid">Paid</option>
+        </select>
+        <span style=${{ color: 'var(--muted)', fontSize: '14px' }}>Tick an EMI when you pay it.${s.overdue.length > 0 ? ' ' + s.overdue.length + ' overdue.' : ''}</span>
+      </div>
+      <button className="btn" onClick=${onAddEmi}>Add EMI</button>
+    </div>
+    ${data.emis.length === 0
+      ? html`<div className="box empty"><p>No EMIs yet. Set up your loan to create the whole schedule at once, or add EMIs one by one.</p></div>`
+      : rows.length === 0 ? html`<div className="box empty"><p>No ${show} EMIs.</p></div>`
+      : mobile ? emiCards
+      : html`<div className="table-wrap"><table>
+          <thead><tr><th>Paid</th><th>No.</th><th>Due</th><th className="num">EMI</th><th className="num">Principal</th><th className="num">Interest</th><th className="num">Balance</th><th>Paid on</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>${rows.map(e => {
+            const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
+            return html`<tr key=${e.id} className=${e.status === 'paid' ? 'paid' : overdue ? 'overdue' : ''}>
+              <td><input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => onToggle(e)} aria-label=${'Mark EMI ' + e.no + ' paid'} /></td>
+              <td>${e.no}</td>
+              <td className="nowrap">${fdate(e.dueDate)}</td>
+              <td className="num"><strong>${inr(e.amount)}</strong></td>
+              <td className="num">${inr(e.principal)}</td>
+              <td className="num">${inr(e.interest)}</td>
+              <td className="num">${inr(e.balance)}</td>
+              <td className="nowrap">${e.status === 'paid' ? fdate(e.paidDate) : '—'}${e.note && html`<div className="meta">${e.note}</div>`}</td>
+              <td><div className="row-actions"><button className="btn quiet small" onClick=${() => onEditEmi(e)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDeleteEmi(e)}>Delete</button></div></td>
+            </tr>`;
+          })}</tbody>
+          <tfoot><tr><td colSpan="3">${rows.length} EMI${rows.length === 1 ? '' : 's'} shown</td>
+            <td className="num">${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</td>
+            <td className="num">${inr(rows.reduce((a, e) => a + num(e.principal), 0))}</td>
+            <td className="num">${inr(rows.reduce((a, e) => a + num(e.interest), 0))}</td><td colSpan="3"></td></tr></tfoot>
+        </table></div>`}
+  </div>`;
+}
+
+function Property({ data, update, onReset, drive, extra }) {
+  const P = data.property;
+  const set = k => e => update(d => ({ ...d, property: { ...d.property, [k]: e.target.value } }));
+  return html`<div>
+    <section className="box">
+      <h2>About the land</h2>
+      <div className="fields">
+        <${Field} label="Name for this purchase" wide><input value=${P.name} onChange=${set('name')} placeholder="e.g. Plot at Padappai" /><//>
+        <${Field} label="Location / address" wide><input value=${P.location} onChange=${set('location')} /><//>
+        <${Field} label="Survey number"><input value=${P.surveyNo} onChange=${set('surveyNo')} /><//>
+        <${Field} label="Area">
+          <div style=${{ display: 'flex', gap: '8px' }}>
+            <input type="number" min="0" step="any" value=${P.area} onChange=${set('area')} style=${{ flex: 1, minWidth: 0 }} />
+            <select value=${P.areaUnit} onChange=${set('areaUnit')} style=${{ width: 'auto' }}>${UNITS.map(u => html`<option key=${u}>${u}</option>`)}</select>
+          </div>
+        <//>
+        <${Field} label="Agreed land price (₹)" help="The price agreed with the seller, before registration and other costs."><input type="number" min="0" step="any" value=${P.totalCost} onChange=${set('totalCost')} /><//>
+        <${Field} label="Agreement date"><input type="date" value=${P.agreementDate} onChange=${set('agreementDate')} /><//>
+        <${Field} label="Seller" wide><input value=${P.seller} onChange=${set('seller')} /><//>
+        <${Field} label="Notes" wide><textarea value=${P.notes} onChange=${set('notes')} placeholder="Documents pending, contacts, anything to remember" /><//>
+      </div>
+    </section>
+    <section className="box">
+      <h2>Google Drive sync</h2>
+      ${!GOOGLE_CLIENT_ID
+        ? html`<p className="hint" style=${{ marginBottom: '10px' }}>Drive sync is off. To turn it on, host this app (for example on GitHub Pages) and paste your Google OAuth client ID into <code>GOOGLE_CLIENT_ID</code> near the top of the script in <code>index.html</code>. Until then, use Import JSON and Export JSON.</p>`
+        : !drive.available
+        ? html`<p className="hint">Google sign-in couldn't load here. Open the app from its hosted address to use Drive sync.</p>`
+        : html`<p className="hint" style=${{ marginBottom: '14px' }}>${drive.linked
+              ? 'This device saves to ' + DRIVE_FILE_NAME + ' in your Google Drive automatically after each change. Open the app on another device and tap Sync with Drive to get the same data.'
+              : 'Connect once and every change is saved to ' + DRIVE_FILE_NAME + ' in your Google Drive, so your phone and laptop share the same data.'}</p>
+            <div className="actions">
+              ${!drive.connected && html`<button className="btn primary" onClick=${drive.onConnect}>${drive.linked ? 'Sync with Drive' : 'Connect Google Drive'}</button>`}
+              ${drive.connected && html`<button className="btn" onClick=${drive.onSaveNow}>Save to Drive now</button>`}
+              ${drive.linked && html`<button className="btn quiet" onClick=${drive.onDisconnect}>Disconnect</button>`}
+            </div>`}
+    </section>
+    ${extra}
+    <section className="box danger-zone">
+      <h2>Start over</h2>
+      <p className="hint" style=${{ marginBottom: '14px' }}>Clears everything on this device. Export JSON first if you want to keep a copy.</p>
+      <button className="btn danger" onClick=${onReset}>Clear all data</button>
+    </section>
+  </div>`;
+}
+
+/* ---------- app ---------- */
+function App({ initial, initialLock, onLock }) {
+  const [data, setData] = useState(initial);
+  const [lock, setLock] = useState(initialLock || null);
+  const persistRef = useRef(Promise.resolve());
+  const [lastExport, setLastExport] = useState(() => { try { return localStorage.getItem(STORE_KEY + ':exported') || ''; } catch (e) { return ''; } });
+  const [tab, setTab] = useState('overview');
+  const [modal, setModal] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [toast, setToast] = useState('');
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+
+  /* Drive sync state */
+  const [driveAvail, setDriveAvail] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [link, setLink] = useState(() => { try { return JSON.parse(localStorage.getItem(LINK_KEY)) || null; } catch (e) { return null; } });
+  const [sync, setSync] = useState({ status: 'idle', message: '' });
+  const [conflict, setConflict] = useState(null);
+  const dataRef = useRef(data); dataRef.current = data;
+  const linkRef = useRef(link);
+  const statusRef = useRef(sync.status); statusRef.current = sync.status;
+  const saveTimer = useRef(null);
+  useEffect(() => { Drive.load().then(setDriveAvail); }, []);
+
+  const saveLink = l => { linkRef.current = l; setLink(l); try { l ? localStorage.setItem(LINK_KEY, JSON.stringify(l)) : localStorage.removeItem(LINK_KEY); } catch (e) {} };
+  const driveFail = e => {
+    if (e.code === 'auth') { setConnected(false); setSync({ status: 'expired', message: e.message }); }
+    else setSync({ status: 'error', message: e.message });
+  };
+  const pushLocal = async fileId => {
+    const d = dataRef.current;
+    const res = fileId ? await Drive.write(fileId, d) : await Drive.create(d);
+    saveLink({ fileId: res.id, modified: res.modifiedTime, base: d.updatedAt || null });
+    setSync({ status: 'saved', message: '' });
+  };
+  const takeRemote = (remote, meta) => {
+    saveLink({ fileId: meta.id, modified: meta.modifiedTime, base: remote.updatedAt || null });
+    setData(remote);
+    setSync({ status: 'saved', message: '' });
+  };
+  const connectDrive = async () => {
+    setSync({ status: 'working', message: '' });
+    try {
+      await Drive.signIn(); setConnected(true);
+      const l = linkRef.current; let meta = null;
+      if (l && l.fileId) { try { meta = await Drive.meta(l.fileId); if (meta.trashed) meta = null; } catch (e) { if (e.code === 'auth') throw e; } }
+      if (!meta) meta = await Drive.find();
+      if (!meta) { await pushLocal(null); setToast('Created ' + DRIVE_FILE_NAME + ' in your Google Drive.'); return; }
+      const remote = normalize(await Drive.read(meta.id));
+      const local = dataRef.current;
+      const base = l && l.fileId === meta.id ? l.base : undefined;
+      const localChanged = !!local.updatedAt && local.updatedAt !== base;
+      const remoteChanged = remote.updatedAt !== base;
+      if (!localChanged || remote.updatedAt === local.updatedAt) { takeRemote(remote, meta); setToast('Synced with Google Drive.'); }
+      else if (!remoteChanged) { await pushLocal(meta.id); setToast("Saved this device's changes to Drive."); }
+      else { setConflict({ remote, meta }); setSync({ status: 'conflict', message: '' }); }
+    } catch (e) { driveFail(e); setToast(e.message); }
+  };
+  const saveToDrive = async () => {
+    const l = linkRef.current;
+    if (!l || !Drive.hasToken()) return;
+    setSync({ status: 'working', message: '' });
+    try {
+      const meta = await Drive.meta(l.fileId);
+      if (meta.trashed) { await pushLocal(null); return; }
+      if (meta.modifiedTime !== l.modified) {
+        const remote = normalize(await Drive.read(l.fileId));
+        if (remote.updatedAt !== l.base) { setConflict({ remote, meta }); setSync({ status: 'conflict', message: '' }); return; }
+      }
+      await pushLocal(l.fileId);
+    } catch (e) {
+      if (e.status === 404) { try { await pushLocal(null); } catch (e2) { driveFail(e2); } }
+      else driveFail(e);
+    }
+  };
+  useEffect(() => {
+    const l = linkRef.current;
+    if (!connected || !l || ['conflict', 'expired'].includes(statusRef.current) || data.updatedAt === l.base) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(saveToDrive, 1500);
+    return () => clearTimeout(saveTimer.current);
+  }, [data, connected]);
+  const useDriveVersion = () => { const c = conflict; setConflict(null); takeRemote(c.remote, c.meta); setToast('Loaded the Drive version.'); };
+  const keepLocal = async () => {
+    const c = conflict; setConflict(null); setSync({ status: 'working', message: '' });
+    try { await pushLocal(c.meta.id); setToast("Drive now has this device's version."); } catch (e) { driveFail(e); }
+  };
+  const disconnectDrive = () => { Drive.signOut(); saveLink(null); setConnected(false); setConflict(null); setSync({ status: 'idle', message: '' }); setToast('Disconnected from Google Drive.'); };
+
+  useEffect(() => {
+    let stale = false;
+    persistRef.current = (async () => {
+      try {
+        const value = JSON.stringify(lock ? await sealData(lock, data) : data);
+        if (!stale) localStorage.setItem(STORE_KEY, value);
+      } catch (e) {}
+    })();
+    return () => { stale = true; };
+  }, [data, lock]);
+  const doLock = async () => { clearTimeout(saveTimer.current); await persistRef.current; onLock(); };
+  useEffect(() => {
+    if (!lock) return;
+    let last = Date.now();
+    const bump = () => { last = Date.now(); };
+    const check = () => { if (Date.now() - last > LOCK_AFTER_MS) doLock(); };
+    const vis = () => { if (document.visibilityState === 'visible') { check(); bump(); } };
+    const evs = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    evs.forEach(ev => window.addEventListener(ev, bump, { passive: true }));
+    document.addEventListener('visibilitychange', vis);
+    const t = setInterval(check, 30000);
+    return () => { evs.forEach(ev => window.removeEventListener(ev, bump)); document.removeEventListener('visibilitychange', vis); clearInterval(t); };
+  }, [lock]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t); }, [toast]);
+
+  const s = useMemo(() => summarize(data), [data]);
+  const update = fn => setData(d => ({ ...fn(d), updatedAt: new Date().toISOString() }));
+  const markExported = () => { const t = new Date().toISOString(); setLastExport(t); try { localStorage.setItem(STORE_KEY + ':exported', t); } catch (e) {} };
+  const unsaved = !!data.updatedAt && (!lastExport || data.updatedAt > lastExport);
+  const P = data.property;
+  const baseName = 'land-ledger-' + slug(P.name) + '-' + todayISO();
+
+  const exportJson = async () => {
+    setBusy(true);
+    try {
+      const r = await offerFile(baseName + '.json', JSON.stringify(data, null, 2), 'application/json');
+      if (r === 'saved') { markExported(); setToast('JSON exported.'); } else setToast('Export cancelled.');
+    } catch (e) { setToast(e.message); } finally { setBusy(false); }
+  };
+  const exportExcel = async () => {
+    setBusy(true);
+    try {
+      const buf = buildWorkbook(data, s);
+      const r = await offerFile(baseName + '.xlsx', buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      setToast(r === 'saved' ? 'Excel file downloaded.' : 'Download cancelled.');
+    } catch (e) { setToast(e.message || 'The Excel file could not be created.'); } finally { setBusy(false); }
+  };
+  const onFile = async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const parsed = normalize(JSON.parse(await file.text()));
+      const apply = () => { setData({ ...parsed, updatedAt: new Date().toISOString() }); markExported(); setTab('overview'); setToast('Imported ' + file.name + '.'); };
+      if (data.payments.length || data.emis.length || data.property.name) {
+        setConfirm({ title: 'Replace current data?', text: 'Importing ' + file.name + ' replaces everything currently in the app.', yes: 'Import and replace', run: apply });
+      } else apply();
+    } catch (err) { setToast(err instanceof SyntaxError ? 'That file is not valid JSON.' : err.message); }
+  };
+
+  const savePayment = p => { update(d => ({ ...d, payments: d.payments.some(x => x.id === p.id) ? d.payments.map(x => x.id === p.id ? p : x) : [...d.payments, p] })); setModal(null); setToast(modal.item ? 'Payment updated.' : 'Payment added.'); };
+  const saveEmi = em => { update(d => ({ ...d, emis: d.emis.some(x => x.id === em.id) ? d.emis.map(x => x.id === em.id ? em : x) : [...d.emis, em] })); setModal(null); setToast(modal.item ? 'EMI updated.' : 'EMI added.'); };
+  const saveLoan = (loan, gen) => {
+    update(d => ({ ...d, loan, emis: gen ? buildSchedule(loan, [...d.emis].sort((a, b) => a.no - b.no)) : d.emis }));
+    setModal(null); setToast(gen ? 'Loan saved and EMI schedule created.' : 'Loan saved.');
+  };
+  const rebuild = () => setConfirm({ title: 'Rebuild EMI schedule?', text: 'The schedule is recalculated from the loan terms. EMIs already marked paid stay paid; manual edits to amounts are replaced.', yes: 'Rebuild schedule',
+    run: () => { try { update(d => ({ ...d, emis: buildSchedule(d.loan, [...d.emis].sort((a, b) => a.no - b.no)) })); setToast('Schedule rebuilt.'); } catch (e) { setToast(e.message); } } });
+  const toggleEmi = e => update(d => ({ ...d, emis: d.emis.map(x => x.id === e.id ? { ...x, status: x.status === 'paid' ? 'pending' : 'paid', paidDate: x.status === 'paid' ? '' : todayISO() } : x) }));
+  const del = (kind, item, label) => setConfirm({ title: 'Delete ' + label + '?', text: 'This can\'t be undone unless you re-import an earlier JSON export.', yes: 'Delete', danger: true,
+    run: () => { update(d => ({ ...d, [kind]: d[kind].filter(x => x.id !== item.id) })); setToast('Deleted.'); } });
+
+  const go = (t, add) => { setTab(t); if (add) setModal({ type: 'payment' }); };
+  const tabs = [['overview', 'Overview'], ['payments', 'Payments', data.payments.length], ['emis', 'EMIs', data.emis.length], ['property', 'Property details']];
+  const driveSynced = connected && link && data.updatedAt === link.base && sync.status !== 'working';
+  let driveUI = null;
+  if (driveAvail) {
+    if (!connected) driveUI = html`<button className="btn full" onClick=${connectDrive} disabled=${sync.status === 'working'}>${sync.status === 'working' ? 'Connecting…' : link ? 'Sync with Drive' : 'Connect Google Drive'}</button>`;
+    else if (sync.status === 'error') driveUI = html`<span className="sync"><i className="err" />Drive save failed <button className="btn small" onClick=${saveToDrive}>Retry</button></span>`;
+    else if (sync.status === 'conflict') driveUI = html`<span className="sync"><i className="err" />Choose a version below</span>`;
+    else driveUI = html`<span className="sync"><i className=${driveSynced ? '' : 'warn'} />${driveSynced ? 'Saved to Drive' : 'Saving to Drive…'}</span>`;
+  }
+  const meta = [P.location, P.surveyNo && 'Survey no. ' + P.surveyNo, P.area && P.area + ' ' + P.areaUnit].filter(Boolean).join(', ');
+
+  return html`<div className="wrap">
+    <header className="top">
+      <div>
+        <h1>${P.name || 'My land purchase'}</h1>
+        <p className="sub">${meta || 'Add the land details under Property details.'}</p>
+      </div>
+      <div className="actions">
+        ${driveUI}
+        ${lock && html`<button className="btn" onClick=${doLock}>Lock</button>`}
+        <input ref=${fileRef} type="file" accept=".json,application/json" hidden onChange=${onFile} />
+        <button className="btn" onClick=${() => fileRef.current.click()}>Import JSON</button>
+        <button className="btn" onClick=${exportJson} disabled=${busy}>Export JSON</button>
+        <button className="btn primary full" onClick=${exportExcel} disabled=${busy}>Download Excel</button>
+      </div>
+    </header>
+    ${conflict && html`<div className="notice conflict"><span>Your Drive copy was changed on another device${conflict.remote.updatedAt ? ' (last edit ' + new Date(conflict.remote.updatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + ')' : ''}. Which version do you want to keep?</span>
+      <div className="btns"><button className="btn small" onClick=${useDriveVersion}>Use Drive version</button><button className="btn small" onClick=${keepLocal}>Keep this device's version</button></div></div>`}
+    ${unsaved && !link && html`<div className="notice"><span>You have changes that aren't in an exported JSON file yet.</span><button className="btn small" onClick=${exportJson} disabled=${busy}>Export JSON now</button></div>`}
+
+    <section className="hero">
+      <${PlotFigure} pct=${s.pct} surveyNo=${P.surveyNo} />
+      <div className="headline">
+        <p className="lede">Paid toward the land</p>
+        <p className="big">${inr(s.towardPrice)}</p>
+        ${s.totalCost > 0
+          ? html`<p className="of">of ${inr(s.totalCost)} agreed with the seller. ${s.balance > 0 ? html`<strong>${inr(s.balance)}</strong> still due.` : 'Fully paid.'}</p>`
+          : html`<p className="of">Set the agreed land price to track how much is left to pay. <button className="btn small" onClick=${() => setTab('property')}>Add land price</button></p>`}
+      </div>
+      <dl className="ledger">
+          <div><dt>Spent from your pocket</dt><dd>${inr(s.pocket)}</dd></div>
+          <div><dt>Additional costs</dt><dd>${inr(s.additional)}</dd></div>
+          <div><dt>EMIs paid</dt><dd>${s.emiPaidCount} <small>of ${data.emis.length}</small></dd></div>
+          <div><dt>Loan outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+      </dl>
+    </section>
+
+    <nav className="tabs" role="tablist">
+      ${tabs.map(([id, label, count]) => html`<button key=${id} className="tab" role="tab" aria-selected=${tab === id} onClick=${() => setTab(id)}>${label}${count ? html`<span className="count">${count}</span>` : null}</button>`)}
+    </nav>
+    <main className="panel">
+      ${tab === 'overview' && html`<${Overview} data=${data} s=${s} go=${go} />`}
+      ${tab === 'payments' && html`<${Payments} data=${data}
+          onAdd=${() => setModal({ type: 'payment' })} onEdit=${p => setModal({ type: 'payment', item: p })}
+          onDelete=${p => del('payments', p, 'this payment of ' + inr(p.amount))} />`}
+      ${tab === 'emis' && html`<${Emis} data=${data} s=${s}
+          onLoan=${() => setModal({ type: 'loan' })} onRebuild=${rebuild}
+          onAddEmi=${() => setModal({ type: 'emi' })} onEditEmi=${e => setModal({ type: 'emi', item: e })}
+          onDeleteEmi=${e => del('emis', e, 'EMI ' + e.no)} onToggle=${toggleEmi} />`}
+      ${tab === 'property' && html`<${Property} data=${data} update=${update}
+          extra=${html`<${LockSettings} lock=${lock} onLockNow=${doLock}
+            onEnable=${async pass => { setLock(await makeLock(pass)); setToast('App lock is on.'); }}
+            onDisable=${async () => { setLock(null); setToast('App lock is off.'); }} />`}
+          drive=${{ available: driveAvail, linked: !!link, connected, onConnect: connectDrive, onDisconnect: disconnectDrive, onSaveNow: saveToDrive }}
+          onReset=${() => setConfirm({ title: 'Clear all data?', text: 'Every payment, EMI and property detail is removed from this device.' + (link ? ' Your Drive file is left as it is, and this device is disconnected from it.' : ''), yes: 'Clear everything', danger: true,
+            run: () => { if (link) { Drive.signOut(); saveLink(null); setConnected(false); setSync({ status: 'idle', message: '' }); } setData(blank()); setTab('overview'); setToast('All data cleared.'); } })} />`}
+    </main>
+
+    ${modal && modal.type === 'payment' && html`<${PaymentForm} item=${modal.item} onSave=${savePayment} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'emi' && html`<${EmiForm} item=${modal.item} nextNo=${data.emis.reduce((m, e) => Math.max(m, e.no), 0) + 1} onSave=${saveEmi} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'loan' && html`<${LoanForm} loan=${data.loan} hasEmis=${data.emis.length > 0} onSave=${saveLoan} onClose=${() => setModal(null)} />`}
+    ${confirm && html`<${Modal} title=${confirm.title} onClose=${() => setConfirm(null)}
+        footer=${html`<button className="btn" onClick=${() => setConfirm(null)}>Cancel</button>
+          <button className=${'btn ' + (confirm.danger ? 'danger solid' : 'primary')} onClick=${() => { const run = confirm.run; setConfirm(null); run(); }}>${confirm.yes}</button>`}>
+        <p>${confirm.text}</p>
+      <//>`}
+    ${toast && html`<div className="toast" role="status">${toast}</div>`}
+  </div>`;
+}
+
+function readStored() { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; } }
+function Root() {
+  const [st, setSt] = useState(() => {
+    const raw = readStored();
+    if (raw && raw.enc) return { locked: true, blob: raw, n: 0 };
+    let data = blank(); try { if (raw) data = normalize(raw); } catch (e) {}
+    return { locked: false, data, lock: null, n: 0 };
+  });
+  const lockNow = () => { const blob = readStored(); if (!blob || !blob.enc) return; Drive.token = null; Drive.expires = 0; setSt(x => ({ locked: true, blob, n: x.n + 1 })); };
+  if (st.locked && st.blob && st.blob.enc) return html`<${LockScreen} blob=${st.blob}
+    onOpen=${(data, lock) => setSt(x => ({ locked: false, data, lock, n: x.n + 1 }))}
+    onWipe=${() => { try { [STORE_KEY, STORE_KEY + ':exported', LINK_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) {} setSt(x => ({ locked: false, data: blank(), lock: null, n: x.n + 1 })); }} />`;
+  return html`<${App} key=${st.n} initial=${st.data || blank()} initialLock=${st.lock} onLock=${lockNow} />`;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${Root} />`);
+</script>
+</body>
+</html>
