@@ -247,6 +247,19 @@ code{font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px}
 .legend span.loan::before{background:var(--ochre)}
 .legend span.due::before{background:var(--line)}
 .calc.warn{background:var(--danger-soft)}
+.loan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.loan-card{display:grid;gap:4px;align-content:start;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;box-shadow:var(--shadow);font:inherit;color:inherit}
+.loan-card:hover{border-color:var(--muted)}
+.loan-card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.loan-card .lc-amt{font-weight:700;font-size:18px;margin-top:4px}
+.loan-card .lc-amt small{font-weight:500;font-size:13px;color:var(--muted)}
+.loan-card .meta{color:var(--muted);font-size:13px}
+.loan-card.add{align-content:center;justify-items:center;border-style:dashed;color:var(--muted);font-weight:600;min-height:120px;box-shadow:none}
+.pill.plain{background:var(--bg);color:var(--muted)}
+@media (max-width:640px){
+  .loan-grid{grid-auto-flow:column;grid-auto-columns:78%;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+  .loan-card{scroll-snap-align:start}
+}
 </style>
 </head>
 <body>
@@ -297,31 +310,77 @@ const fdate = iso => {
   return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const blank = () => ({
-  app: 'land-ledger', version: 1, updatedAt: null,
-  property: { name: '', location: '', surveyNo: '', area: '', areaUnit: 'cents', totalCost: '', seller: '', agreementDate: '', notes: '' },
-  loan: { enabled: false, lender: '', principal: '', rate: '', tenureMonths: '', emi: '', startDate: '', paidToSeller: true },
-  payments: [], emis: [],
+const LOAN_TYPES = [
+  { id: 'land', label: 'Land loan', repay: 'emi', use: 'seller' },
+  { id: 'personal', label: 'Personal loan', repay: 'emi', use: 'self' },
+  { id: 'gold', label: 'Gold loan', repay: 'bullet', use: 'self' },
+  { id: 'other', label: 'Other loan', repay: 'emi', use: 'self' },
+];
+const loanTypeById = Object.fromEntries(LOAN_TYPES.map(t => [t.id, t]));
+const REPAY = [
+  { id: 'emi', label: 'EMI every month', short: 'Monthly EMI', due: 'First EMI date' },
+  { id: 'interest', label: 'Interest every month, principal at the end', short: 'Monthly interest, principal at end', due: 'First interest due date' },
+  { id: 'bullet', label: 'Everything at the end (bullet)', short: 'Bullet repayment at end', due: 'Repayment due date' },
+];
+const repayById = Object.fromEntries(REPAY.map(r => [r.id, r]));
+const PURITY = ['24K', '22K', '20K', '18K', 'Other'];
+const loanName = l => l.name || loanTypeById[l.type].label;
+
+const blankLoan = (type = 'land') => ({
+  id: uid(), type, name: loanTypeById[type].label, lender: '', accountNo: '',
+  principal: '', rate: '', tenureMonths: '', emi: '', loanDate: '', startDate: '',
+  repayment: loanTypeById[type].repay, use: loanTypeById[type].use,
+  gold: { weight: '', purity: '22K', ratePerGram: '', pledgeNo: '' },
+  notes: '', prepayments: [], emis: [],
 });
+
+const blank = () => ({
+  app: 'land-ledger', version: 2, updatedAt: null,
+  property: { name: '', location: '', surveyNo: '', area: '', areaUnit: 'cents', totalCost: '', seller: '', agreementDate: '', notes: '' },
+  loans: [], payments: [],
+});
+
+const normPre = arr => (Array.isArray(arr) ? arr : []).map(x => ({
+  id: x.id || uid(), date: x.date || '', amount: num(x.amount), mode: x.mode === 'emi' ? 'emi' : 'tenure', note: x.note || '' }));
+const normEmis = arr => (Array.isArray(arr) ? arr : []).map((e, i) => ({
+  id: e.id || uid(), no: e.no || i + 1, dueDate: e.dueDate || '', amount: num(e.amount),
+  principal: num(e.principal), interest: num(e.interest), balance: num(e.balance),
+  status: e.status === 'paid' ? 'paid' : 'pending', paidDate: e.paidDate || '', note: e.note || '' }));
+function normLoan(l) {
+  const t = loanTypeById[l.type] ? l.type : 'other';
+  const b = blankLoan(t);
+  return {
+    ...b, ...l, id: l.id || b.id, type: t,
+    repayment: repayById[l.repayment] ? l.repayment : b.repayment,
+    use: l.use === 'seller' || l.use === 'self' ? l.use : b.use,
+    gold: { ...b.gold, ...(l.gold || {}) },
+    prepayments: normPre(l.prepayments), emis: normEmis(l.emis),
+  };
+}
 
 function normalize(raw) {
   if (!raw || typeof raw !== 'object' || (!raw.property && !Array.isArray(raw.payments)))
     throw new Error('This file is not a Land Ledger JSON export.');
   const b = blank();
+  let loans = Array.isArray(raw.loans) ? raw.loans.map(normLoan) : [];
+  // version 1 files had a single "loan" plus a top-level "emis" list
+  if (!Array.isArray(raw.loans)) {
+    const l = raw.loan || {};
+    const oldEmis = Array.isArray(raw.emis) ? raw.emis : [];
+    if (l.enabled || oldEmis.length) loans = [normLoan({
+      ...l, id: uid(), type: l.enabled ? 'land' : 'other', name: l.enabled ? 'Land loan' : 'Loan',
+      repayment: 'emi', use: l.enabled && l.paidToSeller !== false ? 'seller' : 'self', emis: oldEmis })];
+  }
+  const { loan, emis, ...rest } = raw;
   return {
-    ...b, ...raw,
+    ...b, ...rest, version: 2,
     property: { ...b.property, ...(raw.property || {}) },
-    loan: { ...b.loan, ...(raw.loan || {}) },
+    loans,
     payments: (Array.isArray(raw.payments) ? raw.payments : []).map(p => ({
       id: p.id || uid(), date: p.date || '', category: catById[p.category] ? p.category : 'other',
       description: p.description || '', paidTo: p.paidTo || '', mode: p.mode || '', reference: p.reference || '',
       amount: num(p.amount),
       towardPrice: typeof p.towardPrice === 'boolean' ? p.towardPrice : !!(catById[p.category] && catById[p.category].price),
-    })),
-    emis: (Array.isArray(raw.emis) ? raw.emis : []).map((e, i) => ({
-      id: e.id || uid(), no: e.no || i + 1, dueDate: e.dueDate || '', amount: num(e.amount),
-      principal: num(e.principal), interest: num(e.interest), balance: num(e.balance),
-      status: e.status === 'paid' ? 'paid' : 'pending', paidDate: e.paidDate || '', note: e.note || '',
     })),
   };
 }
@@ -336,21 +395,81 @@ function calcEmi(P, rate, n) {
 
 function buildSchedule(loan, old) {
   const P = num(loan.principal), n = Math.round(num(loan.tenureMonths)), r = num(loan.rate) / 1200;
-  if (!P || !n || !loan.startDate) throw new Error('Enter the loan amount, tenure and first EMI date to create a schedule.');
-  const emi = num(loan.emi) || calcEmi(P, loan.rate, n);
-  if (emi <= r2(P * r)) throw new Error('The EMI is too low to cover the monthly interest. Check the EMI amount or leave it blank to calculate it.');
-  let bal = P; const rows = [];
-  for (let i = 0; i < n && bal > 0; i++) {
-    const interest = r2(bal * r);
-    let principal = r2(emi - interest), amount = emi;
-    if (i === n - 1 || principal >= bal) { principal = r2(bal); amount = r2(principal + interest); }
-    bal = r2(bal - principal);
-    const prev = old[i];
+  const kind = loan.repayment || 'emi';
+  if (!P || !n || !loan.startDate) throw new Error('Enter the loan amount, tenure and ' + repayById[kind].due.toLowerCase() + ' to create the schedule.');
+  let emi = kind === 'emi' ? (num(loan.emi) || calcEmi(P, loan.rate, n)) : 0;
+  if (kind === 'emi' && emi <= r2(P * r)) throw new Error('The EMI is too low to cover the monthly interest. Check the EMI amount or leave it blank to calculate it.');
+  const pre = [...(loan.prepayments || [])].filter(x => x.date && num(x.amount) > 0).sort((a, b) => (a.date > b.date ? 1 : -1));
+  let bal = P, pi = 0;
+  const applyPre = (before, i) => {
+    while (pi < pre.length && pre[pi].date < before) {
+      bal = Math.max(0, r2(bal - num(pre[pi].amount)));
+      if (kind === 'emi' && pre[pi].mode === 'emi' && bal > 0) emi = calcEmi(bal, loan.rate, Math.max(1, n - i));
+      pi++;
+    }
+  };
+  const keep = (prev, row) => {
     const paid = prev && prev.status === 'paid';
-    rows.push({ id: prev ? prev.id : uid(), no: i + 1, dueDate: addMonths(loan.startDate, i), amount, principal, interest,
-      balance: Math.max(0, bal), status: paid ? 'paid' : 'pending', paidDate: paid ? prev.paidDate : '', note: prev ? prev.note : '' });
+    return { ...row, id: prev ? prev.id : uid(), status: paid ? 'paid' : 'pending', paidDate: paid ? prev.paidDate : '', note: prev ? prev.note : '' };
+  };
+
+  if (kind === 'bullet') {
+    // interest builds up month by month on the balance; everything is paid on the due date
+    let accrued = 0;
+    for (let i = 0; i < n; i++) { applyPre(addMonths(loan.startDate, i - (n - 1)), i); accrued = r2(accrued + bal * r); }
+    if (bal <= 0.005 && accrued <= 0.005) return [];
+    const prev = old[0];
+    const paidAmt = prev && prev.status === 'paid' && num(prev.amount) > 0;
+    return [keep(prev, { no: 1, dueDate: loan.startDate, amount: paidAmt ? num(prev.amount) : r2(bal + accrued), principal: bal, interest: paidAmt ? num(prev.interest) : accrued, balance: 0 })];
+  }
+
+  const rows = [];
+  for (let i = 0; bal > 0.005 && i < n + 600; i++) {
+    const due = addMonths(loan.startDate, i);
+    applyPre(due, i);
+    if (bal <= 0.005) break;
+    const prev = old[i];
+    let interest, principal, amount;
+    if (prev && prev.status === 'paid' && num(prev.amount) > 0) {
+      interest = num(prev.interest); principal = Math.min(bal, num(prev.principal)); amount = num(prev.amount);
+    } else if (kind === 'interest') {
+      interest = r2(bal * r); principal = i >= n - 1 ? r2(bal) : 0; amount = r2(interest + principal);
+    } else {
+      interest = r2(bal * r); principal = r2(emi - interest); amount = emi;
+      if (i >= n - 1 || principal >= bal) { principal = r2(bal); amount = r2(principal + interest); }
+    }
+    bal = Math.max(0, r2(bal - principal));
+    rows.push(keep(prev, { no: i + 1, dueDate: due, amount, principal, interest, balance: bal }));
+    if (kind === 'interest' && i >= n - 1) break;
   }
   return rows;
+}
+
+function scheduleStats(rows) {
+  const pending = rows.filter(e => e.status !== 'paid');
+  return { interest: rows.reduce((a, e) => a + num(e.interest), 0), months: rows.length, end: rows.length ? rows[rows.length - 1].dueDate : '', emi: pending.length ? pending[0].amount : 0 };
+}
+
+function loanStats(l, today) {
+  const paid = l.emis.filter(e => e.status === 'paid');
+  const pending = l.emis.filter(e => e.status !== 'paid').sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  const principalPaid = paid.reduce((a, e) => a + num(e.principal), 0);
+  const prepaid = l.prepayments.reduce((a, x) => a + num(x.amount), 0);
+  const P = num(l.principal);
+  const sorted = [...l.emis].sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  return {
+    loan: l,
+    paidCount: paid.length, count: l.emis.length,
+    paidAmt: paid.reduce((a, e) => a + num(e.amount), 0),
+    principalPaid, prepaid,
+    interestPaid: paid.reduce((a, e) => a + num(e.interest), 0),
+    scheduledInterest: l.emis.reduce((a, e) => a + num(e.interest), 0),
+    outstanding: P > 0 ? Math.max(0, P - principalPaid - prepaid) : pending.reduce((a, e) => a + num(e.principal), 0),
+    overdue: pending.filter(e => e.dueDate && e.dueDate < today),
+    next: pending.find(e => !e.dueDate || e.dueDate >= today) || null,
+    end: sorted.length ? sorted[sorted.length - 1].dueDate : '',
+    goldValue: num(l.gold && l.gold.weight) * num(l.gold && l.gold.ratePerGram),
+  };
 }
 
 function summarize(data) {
@@ -363,28 +482,27 @@ function summarize(data) {
   });
   const towardDirect = data.payments.filter(p => p.towardPrice).reduce((a, p) => a + num(p.amount), 0);
   const additional = totalPayments - towardDirect;
-  const L = data.loan;
-  const loanToSeller = L.enabled && L.paidToSeller ? num(L.principal) : 0;
+  const today = todayISO();
+  const ls = data.loans.map(l => loanStats(l, today));
+  const sum = (arr, k) => arr.reduce((a, x) => a + num(x[k]), 0);
+  const loanToSeller = data.loans.filter(l => l.use === 'seller').reduce((a, l) => a + num(l.principal), 0);
+  const loanToSelf = data.loans.filter(l => l.use !== 'seller').reduce((a, l) => a + num(l.principal), 0);
   const towardPrice = towardDirect + loanToSeller;
   const totalCost = num(data.property.totalCost);
-  const balance = Math.max(0, totalCost - towardPrice);
-  const paidEmis = data.emis.filter(e => e.status === 'paid');
-  const emiPaid = paidEmis.reduce((a, e) => a + num(e.amount), 0);
-  const principalPaid = paidEmis.reduce((a, e) => a + num(e.principal), 0);
-  const interestPaid = paidEmis.reduce((a, e) => a + num(e.interest), 0);
-  const scheduledInterest = data.emis.reduce((a, e) => a + num(e.interest), 0);
-  const loanOutstanding = L.enabled ? Math.max(0, num(L.principal) - principalPaid) : 0;
-  const today = todayISO();
-  const pending = data.emis.filter(e => e.status !== 'paid').sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
-  const overdue = pending.filter(e => e.dueDate && e.dueDate < today);
-  const next = pending.find(e => !e.dueDate || e.dueDate >= today) || null;
+  const emiPaid = sum(ls, 'paidAmt'), prepaid = sum(ls, 'prepaid'), scheduledInterest = sum(ls, 'scheduledInterest');
+  const overdue = ls.flatMap(x => x.overdue.map(e => ({ ...e, loan: x.loan })));
+  const nexts = ls.filter(x => x.next).map(x => ({ ...x.next, loan: x.loan })).sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
   return {
-    byCat, totalPayments, towardDirect, additional, loanToSeller, towardPrice, totalCost, balance,
-    emiPaid, emiPaidCount: paidEmis.length, principalPaid, interestPaid, scheduledInterest, loanOutstanding,
-    pocket: totalPayments + emiPaid, overdue, next,
+    byCat, byCatToward, totalPayments, towardDirect, additional, loanToSeller, loanToSelf, towardPrice, totalCost,
+    balance: Math.max(0, totalCost - towardPrice),
+    loanStats: ls, borrowed: loanToSeller + loanToSelf,
+    emiPaid, prepaid, emiPaidCount: sum(ls, 'paidCount'), emiCount: sum(ls, 'count'),
+    principalPaid: sum(ls, 'principalPaid'), interestPaid: sum(ls, 'interestPaid'), scheduledInterest,
+    loanOutstanding: sum(ls, 'outstanding'),
+    pocket: Math.max(0, totalPayments + emiPaid + prepaid - loanToSelf),
+    overdue, next: nexts[0] || null,
     projected: totalCost + additional + scheduledInterest,
     pct: totalCost > 0 ? Math.min(1, towardPrice / totalCost) : 0,
-    byCatToward,
     ownShare: Math.max(0, totalCost - loanToSeller),
     ownRemaining: Math.max(0, totalCost - loanToSeller - towardDirect),
     overpaid: totalCost > 0 ? Math.max(0, towardPrice - totalCost) : 0,
@@ -436,8 +554,15 @@ function formatSheet(ws, { money = [], dates = [], widths = [] }) {
 }
 
 function buildWorkbook(data, s) {
-  const P = data.property, L = data.loan;
+  const P = data.property;
   const wb = XLSX.utils.book_new();
+  const usedNames = new Set();
+  const sheetName = base => {
+    let n = String(base).replace(/[\\\/\?\*\[\]:]/g, ' ').trim().slice(0, 28) || 'Sheet';
+    let k = n, i = 2;
+    while (usedNames.has(k.toLowerCase())) k = n.slice(0, 25) + ' ' + i++;
+    usedNames.add(k.toLowerCase()); return k;
+  };
 
   const summary = [
     ['Land purchase summary'],
@@ -448,60 +573,94 @@ function buildWorkbook(data, s) {
     [],
     ['Agreed land price (₹)', s.totalCost],
     ['Paid toward land price (₹)', s.towardPrice],
-    ['   Paid directly (₹)', s.towardDirect],
-    ['   Paid through loan (₹)', s.loanToSeller],
+    ['   Paid by you (₹)', s.towardDirect],
+    ['   Paid by loans to the seller (₹)', s.loanToSeller],
     ['Balance due to seller (₹)', s.balance],
     ['Additional costs (₹)', s.additional],
     [],
-    ['Lender', L.enabled ? L.lender : '—'],
-    ['Loan amount (₹)', L.enabled ? num(L.principal) : 0],
-    ['Interest rate', L.enabled ? num(L.rate) + '% per year' : '—'],
-    ['Tenure', L.enabled ? Math.round(num(L.tenureMonths)) + ' months' : '—'],
-    ['EMIs paid', s.emiPaidCount + ' of ' + data.emis.length],
-    ['EMI amount paid (₹)', s.emiPaid],
+    ['Loans'],
+    ['Total borrowed (₹)', s.borrowed],
+    ['   Paid directly to the seller (₹)', s.loanToSeller],
+    ['   Received in your account (₹)', s.loanToSelf],
+    ['Loan payments made', s.emiPaidCount + ' of ' + s.emiCount],
+    ['Paid in EMIs and dues (₹)', s.emiPaid],
     ['   Principal repaid (₹)', s.principalPaid],
     ['   Interest paid (₹)', s.interestPaid],
-    ['Loan outstanding (₹)', s.loanOutstanding],
+    ['Part payments (₹)', s.prepaid],
+    ['Total outstanding (₹)', s.loanOutstanding],
+    ['Total interest over all loans (₹)', s.scheduledInterest],
     [],
-    ['Total spent from your pocket (₹)', s.pocket],
+    ['Your own money spent (₹)', s.pocket],
     ['Projected total cost incl. interest (₹)', s.projected],
-    [],
-    ['Land price split'],
-    ['Loan paid to seller (₹)', s.loanToSeller],
-    ['Your share of the land price (₹)', s.ownShare],
-    ['Paid from your share (₹)', s.towardDirect],
-    ['Your share still to pay (₹)', s.ownRemaining],
     [],
     ['Spending by category', 'Total (₹)', 'Toward land price (₹)'],
     ...CATS.map(c => [c.label, s.byCat[c.id], s.byCatToward[c.id]]),
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(summary);
-  formatSheet(ws1, { money: [1, 2], widths: [38, 22, 24] });
-  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+  formatSheet(ws1, { money: [1, 2], widths: [40, 22, 24] });
+  XLSX.utils.book_append_sheet(wb, ws1, sheetName('Summary'));
+
+  // one row per loan
+  const loanHead = ['Loan', 'Type', 'Lender', 'Loan / account no.', 'Amount (₹)', 'Interest % p.a.', 'Repayment', 'Tenure (months)', 'Loan date', 'First / due date',
+    'Money went to', 'Next due (₹)', 'Next due date', 'Paid so far (₹)', 'Interest paid (₹)', 'Part payments (₹)', 'Outstanding (₹)', 'Total interest (₹)', 'Ends',
+    'Gold weight (g)', 'Purity', 'Gold rate per g (₹)', 'Gold value (₹)', 'Loan to value %', 'Pledge / receipt no.'];
+  const loanRows = [loanHead];
+  s.loanStats.forEach(x => {
+    const l = x.loan, g = l.gold || {}, isGold = l.type === 'gold';
+    loanRows.push([loanName(l), loanTypeById[l.type].label, l.lender, l.accountNo, num(l.principal), num(l.rate), repayById[l.repayment].short,
+      Math.round(num(l.tenureMonths)) || '', serial(l.loanDate), serial(l.startDate),
+      l.use === 'seller' ? 'Seller (counts toward land price)' : 'My account',
+      x.next ? num(x.next.amount) : 0, x.next ? serial(x.next.dueDate) : '', x.paidAmt, x.interestPaid, x.prepaid, x.outstanding, x.scheduledInterest, serial(x.end),
+      isGold ? num(g.weight) || '' : '', isGold ? g.purity : '', isGold ? num(g.ratePerGram) || '' : '', isGold && x.goldValue ? x.goldValue : '',
+      isGold && x.goldValue ? Math.round(num(l.principal) / x.goldValue * 1000) / 10 : '', isGold ? g.pledgeNo : '']);
+  });
+  if (s.loanStats.length > 1) loanRows.push([], ['Total', '', '', '', s.borrowed, '', '', '', '', '', '', '', '', s.emiPaid, s.interestPaid, s.prepaid, s.loanOutstanding, s.scheduledInterest]);
+  const ws2 = XLSX.utils.aoa_to_sheet(loanRows);
+  formatSheet(ws2, { money: [4, 11, 13, 14, 15, 16, 17, 21, 22], dates: [8, 9, 12, 18], widths: [20, 14, 20, 18, 14, 10, 26, 10, 13, 13, 26, 13, 13, 14, 14, 14, 14, 14, 13, 10, 8, 12, 14, 10, 18] });
+  XLSX.utils.book_append_sheet(wb, ws2, sheetName('Loans'));
 
   const pays = [...data.payments].sort((a, b) => (a.date > b.date ? 1 : -1));
   const payRows = [['Date', 'Category', 'Description', 'Paid to', 'Mode', 'Reference', 'Amount (₹)', 'Counts toward land price']];
   pays.forEach(p => payRows.push([serial(p.date), catById[p.category].label, p.description, p.paidTo, p.mode, p.reference, num(p.amount), p.towardPrice ? 'Yes' : 'No']));
   payRows.push([], ['', '', '', '', '', 'Total', s.totalPayments, '']);
-  const ws2 = XLSX.utils.aoa_to_sheet(payRows);
-  formatSheet(ws2, { money: [6], dates: [0], widths: [13, 26, 34, 22, 15, 18, 16, 22] });
-  XLSX.utils.book_append_sheet(wb, ws2, 'Payments');
+  const ws3 = XLSX.utils.aoa_to_sheet(payRows);
+  formatSheet(ws3, { money: [6], dates: [0], widths: [13, 26, 34, 22, 15, 18, 16, 22] });
+  XLSX.utils.book_append_sheet(wb, ws3, sheetName('Payments'));
 
-  const emiRows = [['EMI no.', 'Due date', 'EMI (₹)', 'Principal (₹)', 'Interest (₹)', 'Balance after (₹)', 'Status', 'Paid on', 'Note']];
-  data.emis.forEach(e => emiRows.push([e.no, serial(e.dueDate), num(e.amount), num(e.principal), num(e.interest), num(e.balance), e.status === 'paid' ? 'Paid' : 'Pending', serial(e.paidDate), e.note]));
-  const tot = k => data.emis.reduce((a, e) => a + num(e[k]), 0);
-  emiRows.push([], ['Total', '', tot('amount'), tot('principal'), tot('interest'), '', '', '', '']);
-  const ws3 = XLSX.utils.aoa_to_sheet(emiRows);
-  formatSheet(ws3, { money: [2, 3, 4, 5], dates: [1, 7], widths: [9, 13, 14, 14, 14, 17, 10, 13, 28] });
-  XLSX.utils.book_append_sheet(wb, ws3, 'EMI schedule');
+  // a schedule sheet for every loan
+  s.loanStats.forEach(x => {
+    const l = x.loan;
+    const rows = [[loanName(l) + (l.lender ? ', ' + l.lender : '')], [repayById[l.repayment].short + ', ' + num(l.rate) + '% p.a.'], [],
+      ['No.', 'Due date', 'Amount (₹)', 'Principal (₹)', 'Interest (₹)', 'Balance after (₹)', 'Status', 'Paid on', 'Note']];
+    [...l.emis].sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1)).forEach(e =>
+      rows.push([e.no, serial(e.dueDate), num(e.amount), num(e.principal), num(e.interest), num(e.balance), e.status === 'paid' ? 'Paid' : 'Pending', serial(e.paidDate), e.note]));
+    const tot = k => l.emis.reduce((a, e) => a + num(e[k]), 0);
+    rows.push([], ['Total', '', tot('amount'), tot('principal'), tot('interest'), '', x.paidCount + ' paid', '', '']);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    formatSheet(ws, { money: [2, 3, 4, 5], dates: [1, 7], widths: [8, 13, 14, 14, 14, 17, 10, 13, 28] });
+    XLSX.utils.book_append_sheet(wb, ws, sheetName(loanName(l)));
+  });
+
+  const pre = data.loans.flatMap(l => l.prepayments.map(p => ({ ...p, loan: l }))).sort((a, b) => (a.date > b.date ? 1 : -1));
+  if (pre.length) {
+    const preRows = [['Date', 'Loan', 'Amount (₹)', 'Used to', 'Note']];
+    pre.forEach(p => preRows.push([serial(p.date), loanName(p.loan), num(p.amount), p.loan.repayment !== 'emi' ? 'Reduce principal' : p.mode === 'emi' ? 'Reduce EMI' : 'Reduce tenure', p.note]));
+    preRows.push([], ['Total', '', s.prepaid, '', '']);
+    const ws4 = XLSX.utils.aoa_to_sheet(preRows);
+    formatSheet(ws4, { money: [2], dates: [0], widths: [13, 22, 16, 16, 30] });
+    XLSX.utils.book_append_sheet(wb, ws4, sheetName('Part payments'));
+  }
 
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 }
 
 /* ---------- Google Drive sync (optional) ----------
-   Paste your OAuth client ID here to turn on Drive sync (see README).
-   The client ID is not a secret; it is safe in a public GitHub repo. */
-const GOOGLE_CLIENT_ID = '101358779977-o88ha91nqmtmmsjhj3gurah0fp32fiq4.apps.googleusercontent.com';
+   The client ID comes from the GOOGLE_CLIENT_ID repository variable, injected
+   by .github/workflows/deploy.yml (see README). It is a public identifier, not a secret. */
+const GOOGLE_CLIENT_ID = (() => {
+  const v = '__GOOGLE_CLIENT_ID__'; // replaced at deploy time by the GitHub Actions workflow
+  return /^__[A-Z_]+__$/.test(v) ? '' : v.trim();
+})();
 const DRIVE_FILE_NAME = 'land-ledger.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const LINK_KEY = STORE_KEY + ':drive';
@@ -745,39 +904,136 @@ function PaymentForm({ item, onSave, onClose }) {
   <//>`;
 }
 
-function LoanForm({ loan, hasEmis, landPrice, onSave, onClose }) {
-  const [f, setF] = useState({ ...loan, enabled: true });
-  const [gen, setGen] = useState(!hasEmis);
+function LoanForm({ loan, isNew, landPrice, onSave, onClose }) {
+  const [f, setF] = useState(() => ({ ...loan, gold: { ...loan.gold } }));
+  const [gen, setGen] = useState(!loan.emis.length);
   const [err, setErr] = useState('');
-  const set = k => e => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
-  const auto = calcEmi(f.principal, f.rate, f.tenureMonths);
-  const save = () => {
-    if (!(num(f.principal) > 0)) return setErr('Enter the loan amount.');
-    if (gen) {
-      try { buildSchedule(f, []); } catch (e) { return setErr(e.message); }
-    }
-    onSave(f, gen);
+  const set = k => e => setF(x => {
+    const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    const n = { ...x, [k]: v };
+    // bullet loans: suggest the due date from loan date + tenure
+    if (n.repayment === 'bullet' && (k === 'loanDate' || k === 'tenureMonths' || k === 'repayment') && n.loanDate && num(n.tenureMonths) > 0 && (!x.startDate || x.startDate === addMonths(x.loanDate, Math.round(num(x.tenureMonths)))))
+      n.startDate = addMonths(n.loanDate, Math.round(num(n.tenureMonths)));
+    return n;
+  });
+  const setGold = k => e => setF(x => ({ ...x, gold: { ...x.gold, [k]: e.target.value } }));
+  const changeType = e => {
+    const t = e.target.value, prev = loanTypeById[f.type];
+    setF(x => ({ ...x, type: t,
+      name: !x.name || x.name === prev.label ? loanTypeById[t].label : x.name,
+      ...(isNew ? { repayment: loanTypeById[t].repay, use: loanTypeById[t].use } : {}) }));
   };
-  return html`<${Modal} title="Loan details" onClose=${onClose}
+  const kind = f.repayment, r = num(f.rate) / 1200, P = num(f.principal), n = Math.round(num(f.tenureMonths));
+  const auto = kind === 'emi' ? calcEmi(P, f.rate, n) : 0;
+  const goldValue = num(f.gold.weight) * num(f.gold.ratePerGram);
+  const preview = (() => {
+    if (!(P > 0) || !(n > 0)) return null;
+    if (kind === 'emi') { const e = num(f.emi) || auto; return html`EMI: <strong>${inr(e)}</strong> a month, about ${inr(r2(e * n - P))} in total interest.`; }
+    if (kind === 'interest') return html`Interest: <strong>${inr(r2(P * r))}</strong> a month, then ${inr(P)} principal with the last payment. About ${inr(r2(P * r * n))} in total interest.`;
+    const acc = r2(P * r * n);
+    return html`Pay about <strong>${inr(P + acc)}</strong> at the end${f.startDate ? ' on ' + fdate(f.startDate) : ''}: ${inr(P)} principal plus ${inr(acc)} interest. Lenders who compound will charge a little more.`;
+  })();
+  const save = () => {
+    if (!(P > 0)) return setErr('Enter the loan amount.');
+    const out = { ...f, name: f.name.trim() || loanTypeById[f.type].label };
+    if (gen) {
+      try { out.emis = buildSchedule(out, [...f.emis].sort((a, b) => a.no - b.no)); } catch (e) { return setErr(e.message); }
+    }
+    onSave(out);
+  };
+  return html`<${Modal} title=${isNew ? 'Add loan' : 'Edit loan'} onClose=${onClose}
       footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save loan</button>`}>
     <div className="fields">
-      <${Field} label="Lender" wide><input value=${f.lender} onChange=${set('lender')} placeholder="Bank or finance company" /><//>
-      ${num(landPrice) > 0 && html`<${Field} label="Loan % of land price" help=${'Land price ' + inr(landPrice) + '. Fills in the loan amount.'}>
+      <${Field} label="Loan type"><select value=${f.type} onChange=${changeType}>${LOAN_TYPES.map(t => html`<option key=${t.id} value=${t.id}>${t.label}</option>`)}</select><//>
+      <${Field} label="Name"><input value=${f.name} onChange=${set('name')} placeholder="e.g. SBI land loan" /><//>
+      <${Field} label="Lender"><input value=${f.lender} onChange=${set('lender')} placeholder="Bank or finance company" /><//>
+      <${Field} label="Loan / account number"><input value=${f.accountNo} onChange=${set('accountNo')} /><//>
+      ${f.use === 'seller' && num(landPrice) > 0 && html`<${Field} label="Loan % of land price" help=${'Land price ' + inr(landPrice) + '. Fills in the loan amount.'}>
         <input type="number" min="0" max="100" step="any" placeholder="e.g. 80"
-          value=${num(f.principal) > 0 ? Math.round(num(f.principal) / num(landPrice) * 10000) / 100 : ''}
-          onChange=${e => setF({ ...f, principal: e.target.value === '' ? '' : String(r2(num(landPrice) * num(e.target.value) / 100)) })} />
+          value=${P > 0 ? Math.round(P / num(landPrice) * 10000) / 100 : ''}
+          onChange=${e => setF(x => ({ ...x, principal: e.target.value === '' ? '' : String(r2(num(landPrice) * num(e.target.value) / 100)) }))} />
       <//>`}
       <${Field} label="Loan amount (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
       <${Field} label="Interest rate (% per year)"><input type="number" min="0" step="any" value=${f.rate} onChange=${set('rate')} /><//>
+      <${Field} label="How it's repaid" wide><select value=${kind} onChange=${set('repayment')}>${REPAY.map(x => html`<option key=${x.id} value=${x.id}>${x.label}</option>`)}</select><//>
       <${Field} label="Tenure (months)"><input type="number" min="1" step="1" value=${f.tenureMonths} onChange=${set('tenureMonths')} /><//>
-      <${Field} label="First EMI date"><input type="date" value=${f.startDate} onChange=${set('startDate')} /><//>
-      <${Field} label="EMI amount (₹)" wide help="Leave blank to calculate it from the amount, rate and tenure.">
-        <input type="number" min="0" step="any" value=${f.emi} onChange=${set('emi')} placeholder=${auto ? 'Calculated: ' + inr(auto) : ''} />
-      <//>
-      ${auto > 0 && html`<p className="calc">EMI at these terms: <strong>${inr(num(f.emi) || auto)}</strong> a month, about ${inr(r2((num(f.emi) || auto) * Math.round(num(f.tenureMonths)) - num(f.principal)))} in total interest.</p>`}
-      <label className="checkline"><input type="checkbox" className="check" checked=${!!f.paidToSeller} onChange=${set('paidToSeller')} /> The loan amount was paid to the seller, so it counts toward the land price.</label>
+      <${Field} label="Loan date"><input type="date" value=${f.loanDate} onChange=${set('loanDate')} /><//>
+      <${Field} label=${repayById[kind].due}><input type="date" value=${f.startDate} onChange=${set('startDate')} /><//>
+      ${kind === 'emi' && html`<${Field} label="EMI amount (₹)" help="Leave blank to calculate it.">
+        <input type="number" min="0" step="any" value=${f.emi} onChange=${set('emi')} placeholder=${auto ? 'Calculated: ' + inr(auto) : ''} /><//>`}
+      ${preview && html`<p className="calc">${preview}</p>`}
+
+      ${f.type === 'gold' && html`
+        <p className="field wide" style=${{ margin: '6px 0 0', fontWeight: 600, color: 'var(--ink)' }}>Gold pledged</p>
+        <${Field} label="Weight (grams)"><input type="number" min="0" step="any" value=${f.gold.weight} onChange=${setGold('weight')} /><//>
+        <${Field} label="Purity"><select value=${f.gold.purity} onChange=${setGold('purity')}>${PURITY.map(p => html`<option key=${p}>${p}</option>`)}</select><//>
+        <${Field} label="Gold rate per gram at pledge (₹)"><input type="number" min="0" step="any" value=${f.gold.ratePerGram} onChange=${setGold('ratePerGram')} /><//>
+        <${Field} label="Pledge / receipt number"><input value=${f.gold.pledgeNo} onChange=${setGold('pledgeNo')} /><//>
+        ${goldValue > 0 && html`<p className="calc">Gold value about <strong>${inr(r2(goldValue))}</strong>. ${P > 0 ? html`This loan is <strong>${Math.round(P / goldValue * 1000) / 10}%</strong> of it.` : ''}</p>`}`}
+
+      <p className="field wide" style=${{ margin: '6px 0 0' }}>Where did the loan money go?</p>
+      <label className=${'toward' + (f.use === 'seller' ? ' on' : '')}>
+        <input type="radio" name="use" className="check" checked=${f.use === 'seller'} onChange=${() => setF(x => ({ ...x, use: 'seller' }))} />
+        <span><strong>Paid directly to the seller</strong>Counts toward the land price. Don't also add it under Payments.</span>
+      </label>
+      <label className=${'toward' + (f.use !== 'seller' ? ' on' : '')}>
+        <input type="radio" name="use" className="check" checked=${f.use !== 'seller'} onChange=${() => setF(x => ({ ...x, use: 'self' }))} />
+        <span><strong>Came to my account</strong>Record what you paid from it under Payments, so nothing is counted twice.</span>
+      </label>
       <label className="checkline"><input type="checkbox" className="check" checked=${gen} onChange=${e => setGen(e.target.checked)} />
-        ${hasEmis ? 'Rebuild the EMI schedule from these terms. EMIs already marked paid stay paid.' : 'Create the EMI schedule from these terms.'}</label>
+        ${f.emis.length ? 'Rebuild the payment schedule from these terms. Payments already marked paid stay paid.' : 'Create the payment schedule from these terms.'}</label>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function PrepaymentForm({ loan, onSave, onClose }) {
+  const isEmi = loan.repayment === 'emi';
+  const [f, setF] = useState({ date: todayISO(), amount: '', mode: 'tenure', note: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const old = useMemo(() => [...loan.emis].sort((a, b) => a.no - b.no), [loan]);
+  const base = useMemo(() => { try { return scheduleStats(buildSchedule(loan, old)); } catch (e) { return null; } }, [loan, old]);
+  const sim = mode => {
+    if (!(num(f.amount) > 0) || !f.date) return null;
+    try {
+      const rows = buildSchedule({ ...loan, prepayments: [...loan.prepayments, { ...f, mode, amount: num(f.amount) }] }, old);
+      const next = rows.find(e => e.status !== 'paid' && e.dueDate > f.date);
+      return { ...scheduleStats(rows), nextEmi: next ? next.amount : 0 };
+    } catch (e) { return null; }
+  };
+  const a = isEmi ? sim('emi') : null, b = sim('tenure');
+  const nx = old.find(e => e.status !== 'paid' && e.dueDate > f.date);
+  const curEmi = nx ? nx.amount : 0;
+  const monthsBetween = (x, y) => { if (!x || !y) return 0; const [y1, m1] = x.split('-').map(Number), [y2, m2] = y.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+  const saved = r => (base && r ? Math.max(0, base.interest - r.interest) : 0);
+  const save = () => {
+    if (!f.date) return setErr('Enter the date of the part payment.');
+    if (!(num(f.amount) > 0)) return setErr('Enter the amount you paid.');
+    onSave({ ...f, id: uid(), amount: num(f.amount) });
+  };
+  const opt = (mode, r, title) => html`<label className=${'toward' + (f.mode === mode ? ' on' : '')}>
+      <input type="radio" name="ppmode" className="check" checked=${f.mode === mode} onChange=${() => setF({ ...f, mode })} />
+      <span><strong>${title}</strong>${!r ? 'Enter the amount and date to see the effect.'
+        : mode === 'emi'
+          ? `EMI goes from ${inr(curEmi)} to ${inr(r.nextEmi)}. Loan still ends ${fdate(r.end)}. Interest saved: ${inr(saved(r))}.`
+          : `EMI stays ${inr(curEmi)}. Loan ends ${fdate(r.end)}, ${Math.max(0, monthsBetween(r.end, base ? base.end : r.end))} months earlier. Interest saved: ${inr(saved(r))}.`}</span>
+    </label>`;
+  const better = a && b ? saved(b) - saved(a) : 0;
+  return html`<${Modal} title=${'Part payment: ' + loanName(loan)} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save part payment</button>`}>
+    <div className="fields">
+      <${Field} label="Date paid"><input type="date" value=${f.date} onChange=${set('date')} /><//>
+      <${Field} label="Amount (₹)"><input type="number" min="0" step="any" inputMode="decimal" value=${f.amount} onChange=${set('amount')} autoFocus /><//>
+      ${isEmi ? html`
+        <p className="field wide" style=${{ margin: 0 }}>What did you ask the bank to reduce?</p>
+        ${opt('tenure', b, 'Reduce tenure (keep the same EMI)')}
+        ${opt('emi', a, 'Reduce EMI (keep the same end date)')}
+        ${better > 1 && html`<p className="calc">Reducing tenure saves ${inr(better)} more in interest. Reducing EMI lowers your monthly outgo instead.</p>`}`
+      : html`<p className="calc">${b
+          ? html`This reduces the principal${loan.repayment === 'interest' ? ', so every monthly interest payment after it is smaller' : ' you repay at the end, and less interest builds up'}. Interest saved: <strong>${inr(saved(b))}</strong>.`
+          : 'Enter the amount and date to see how much interest it saves.'}</p>`}
+      <${Field} label="Note" wide><input value=${f.note} onChange=${set('note')} placeholder="e.g. Bonus, bank reference number" /><//>
     </div>
     ${err && html`<p className="err">${err}</p>`}
   <//>`;
@@ -789,16 +1045,16 @@ function EmiForm({ item, nextNo, onSave, onClose }) {
   const set = k => e => setF({ ...f, [k]: e.target.value });
   const save = () => {
     if (!f.dueDate) return setErr('Enter the due date.');
-    if (!(num(f.amount) > 0)) return setErr('Enter the EMI amount.');
+    if (!(num(f.amount) > 0)) return setErr('Enter the amount.');
     onSave({ ...f, id: f.id || uid(), no: Math.round(num(f.no)) || nextNo, amount: num(f.amount), principal: num(f.principal), interest: num(f.interest), balance: num(f.balance),
       paidDate: f.status === 'paid' ? (f.paidDate || todayISO()) : '' });
   };
-  return html`<${Modal} title=${item ? 'Edit EMI' : 'Add EMI'} onClose=${onClose}
-      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : 'Add EMI'}</button>`}>
+  return html`<${Modal} title=${item ? 'Edit loan payment' : 'Add loan payment'} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : 'Add'}</button>`}>
     <div className="fields">
-      <${Field} label="EMI no."><input type="number" min="1" value=${f.no} onChange=${set('no')} /><//>
+      <${Field} label="No."><input type="number" min="1" value=${f.no} onChange=${set('no')} /><//>
       <${Field} label="Due date"><input type="date" value=${f.dueDate} onChange=${set('dueDate')} /><//>
-      <${Field} label="EMI amount (₹)"><input type="number" min="0" step="any" value=${f.amount} onChange=${set('amount')} /><//>
+      <${Field} label="Amount (₹)"><input type="number" min="0" step="any" value=${f.amount} onChange=${set('amount')} /><//>
       <${Field} label="Principal part (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
       <${Field} label="Interest part (₹)"><input type="number" min="0" step="any" value=${f.interest} onChange=${set('interest')} /><//>
       <${Field} label="Balance after (₹)"><input type="number" min="0" step="any" value=${f.balance} onChange=${set('balance')} /><//>
@@ -824,7 +1080,7 @@ function Overview({ data, s, go }) {
           : html`
             <div className="legend"><span>Toward land price</span><span className="extra">Additional cost</span></div>
             <div className="bars">
-              ${s.loanToSeller > 0 && html`<div><div className="bar-head"><span>Loan paid to seller</span><span>${inr(s.loanToSeller)}</span></div><div className="track"><i style=${{ width: (s.loanToSeller / max * 100) + '%' }} /></div></div>`}
+              ${s.loanToSeller > 0 && html`<div><div className="bar-head"><span>Loans paid to seller</span><span>${inr(s.loanToSeller)}</span></div><div className="track"><i style=${{ width: (s.loanToSeller / max * 100) + '%' }} /></div></div>`}
               ${used.map(c => html`<div key=${c.id}>
                 <div className="bar-head"><span>${c.label}</span><span>${inr(s.byCat[c.id])}</span></div>
                 <div className="track"><i className=${s.byCatToward[c.id] >= s.byCat[c.id] ? '' : 'extra'} style=${{ width: (s.byCat[c.id] / max * 100) + '%' }} /></div>
@@ -842,33 +1098,36 @@ function Overview({ data, s, go }) {
     <div>
       ${s.totalCost > 0 && html`<section className="box">
         <h2>Land price split</h2>
-        <div className="legend">${s.loanToSeller > 0 && html`<span className="loan">Loan</span>`}<span>You paid</span><span className="due">Still to pay</span></div>
-        <div className="split" role="img" aria-label=${'Loan ' + inr(s.loanToSeller) + ', you paid ' + inr(s.towardDirect) + ', still to pay ' + inr(s.ownRemaining)}>
+        <div className="legend">${s.loanToSeller > 0 && html`<span className="loan">Loans</span>`}<span>You paid</span><span className="due">Still to pay</span></div>
+        <div className="split" role="img" aria-label=${'Loans ' + inr(s.loanToSeller) + ', you paid ' + inr(s.towardDirect) + ', still to pay ' + inr(s.ownRemaining)}>
           <i className="s-loan" style=${{ width: Math.min(100, s.loanToSeller / s.totalCost * 100) + '%' }} />
           <i className="s-paid" style=${{ width: Math.min(100 - Math.min(100, s.loanToSeller / s.totalCost * 100), s.towardDirect / s.totalCost * 100) + '%' }} />
         </div>
-        ${s.overpaid > 0 && html`<p className="calc warn" style=${{ marginBottom: '12px' }}>Loan plus payments marked "Include in land amount" are ${inr(s.overpaid)} more than the land price. Check the land price, the loan amount, or which payments are included.</p>`}
+        ${s.overpaid > 0 && html`<p className="calc warn" style=${{ marginBottom: '12px' }}>Loans paid to the seller plus payments marked "Include in land amount" are ${inr(s.overpaid)} more than the land price. Check the land price, the loan amounts, or which payments are included.</p>`}
         <dl className="kv">
           <div><dt>Land price</dt><dd>${inr(s.totalCost)}</dd></div>
-          ${s.loanToSeller > 0 && html`<div><dt>Loan (${Math.round(s.loanPct * 1000) / 10}%)</dt><dd>${inr(s.loanToSeller)}</dd></div>`}
+          ${s.loanToSeller > 0 && html`<div><dt>Loans paid to seller (${Math.round(s.loanPct * 1000) / 10}%)</dt><dd>${inr(s.loanToSeller)}</dd></div>`}
           <div><dt>Your share (${Math.round((1 - s.loanPct) * 1000) / 10}%)</dt><dd>${inr(s.ownShare)}</dd></div>
           <div><dt>Paid from your share</dt><dd>${inr(s.towardDirect)}</dd></div>
           <div style=${{ borderTop: '1px solid var(--line)', paddingTop: '10px' }}><dt>Your share still to pay</dt><dd>${inr(s.ownRemaining)}</dd></div>
         </dl>
+        ${s.loanToSelf > 0 && html`<p className="hint" style=${{ marginTop: '12px', fontSize: '13px' }}>Personal and other loans that came to your account (${inr(s.loanToSelf)}) count here only through the payments you made from them.</p>`}
       </section>`}
       <section className="box">
-        <h2>Loan and EMIs</h2>
-        ${!data.loan.enabled && data.emis.length === 0
-          ? html`<p className="hint" style=${{ marginBottom: '14px' }}>No loan added. If you took a loan for this land, add it to track every EMI.</p><button className="btn" onClick=${() => go('emis')}>Set up loan</button>`
+        <h2>Loans</h2>
+        ${data.loans.length === 0
+          ? html`<p className="hint" style=${{ marginBottom: '14px' }}>No loans added. Add your land loan, personal loan or gold loan to track every payment.</p><button className="btn" onClick=${() => go('loans')}>Add a loan</button>`
           : html`
-            ${s.overdue.length > 0 && html`<p className="alert">${s.overdue.length} EMI${s.overdue.length > 1 ? 's are' : ' is'} past due and not marked paid.</p>`}
+            ${s.overdue.length > 0 && html`<p className="alert">${s.overdue.length} loan payment${s.overdue.length > 1 ? 's are' : ' is'} past due and not marked paid.</p>`}
+            <ul className="recent" style=${{ marginBottom: '14px' }}>${s.loanStats.map(x => html`<li key=${x.loan.id}>
+              <div><div>${loanName(x.loan)}</div><div className="meta">${x.next ? 'Next ' + inr(x.next.amount) + ' on ' + fdate(x.next.dueDate) : x.count ? 'All paid' : 'No schedule yet'}</div></div>
+              <div style=${{ textAlign: 'right' }}><strong>${inr(x.outstanding)}</strong><div className="meta">outstanding</div></div></li>`)}</ul>
             <dl className="kv">
-              <div><dt>Next EMI</dt><dd>${s.next ? inr(s.next.amount) + ' on ' + fdate(s.next.dueDate) : 'None pending'}</dd></div>
-              <div><dt>EMIs paid</dt><dd>${s.emiPaidCount} of ${data.emis.length}</dd></div>
-              <div><dt>Paid in EMIs</dt><dd>${inr(s.emiPaid)}</dd></div>
+              <div><dt>Total borrowed</dt><dd>${inr(s.borrowed)}</dd></div>
+              <div><dt>Repaid so far</dt><dd>${inr(s.emiPaid + s.prepaid)}</dd></div>
               <div><dt>Interest paid so far</dt><dd>${inr(s.interestPaid)}</dd></div>
-              <div><dt>Loan outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
-              <div><dt>Total interest over the loan</dt><dd>${inr(s.scheduledInterest)}</dd></div>
+              <div><dt>Total outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+              <div><dt>Total interest over all loans</dt><dd>${inr(s.scheduledInterest)}</dd></div>
             </dl>`}
       </section>
       <section className="box">
@@ -876,7 +1135,7 @@ function Overview({ data, s, go }) {
         <dl className="kv">
           <div><dt>Agreed land price</dt><dd>${inr(s.totalCost)}</dd></div>
           <div><dt>Additional costs so far</dt><dd>${inr(s.additional)}</dd></div>
-          <div><dt>Loan interest (full schedule)</dt><dd>${inr(s.scheduledInterest)}</dd></div>
+          <div><dt>Loan interest (full schedules)</dt><dd>${inr(s.scheduledInterest)}</dd></div>
           <div style=${{ borderTop: '1px solid var(--line)', paddingTop: '10px' }}><dt>Projected total</dt><dd>${inr(s.projected)}</dd></div>
         </dl>
       </section>
@@ -931,82 +1190,133 @@ function Payments({ data, onAdd, onEdit, onDelete }) {
   </div>`;
 }
 
-function Emis({ data, s, onLoan, onAddEmi, onEditEmi, onDeleteEmi, onToggle, onRebuild }) {
-  const L = data.loan, today = todayISO();
+function Loans({ data, s, sel, setSel, on }) {
   const [show, setShow] = useState('all');
   const mobile = useIsMobile();
-  const rows = [...data.emis].filter(e => show === 'all' || (show === 'paid' ? e.status === 'paid' : e.status !== 'paid'))
+  const today = todayISO();
+  if (!data.loans.length) return html`<div className="box empty">
+    <p>No loans yet. Add each loan you've taken for this land, such as the land loan from the bank, a personal loan or a gold loan.</p>
+    <div className="actions" style=${{ justifyContent: 'center' }}>
+      <button className="btn primary" onClick=${() => on.addLoan('land')}>Add land loan</button>
+      <button className="btn" onClick=${() => on.addLoan('personal')}>Add personal loan</button>
+      <button className="btn" onClick=${() => on.addLoan('gold')}>Add gold loan</button>
+    </div></div>`;
+  const L = data.loans.find(l => l.id === sel) || data.loans[0];
+  const st = s.loanStats.find(x => x.loan.id === L.id);
+  const kind = L.repayment, g = L.gold || {};
+  const rows = [...L.emis].filter(e => show === 'all' || (show === 'paid' ? e.status === 'paid' : e.status !== 'paid'))
     .sort((a, b) => (a.dueDate > b.dueDate ? 1 : a.dueDate < b.dueDate ? -1 : a.no - b.no));
-  const emiCards = html`<div className="cards">
+  const nextAmt = st.next ? st.next.amount : 0;
+  const pillCls = t => 'pill' + (t === 'gold' ? ' extra' : t === 'land' ? '' : ' plain');
+  const acts = e => html`<div className="row-actions"><button className="btn quiet small" onClick=${() => on.editRow(L.id, e)}>Edit</button><button className="btn quiet small danger" onClick=${() => on.deleteRow(L.id, e)}>Delete</button></div>`;
+
+  const cards = html`<div className="cards">
     ${rows.map(e => {
       const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
       return html`<article key=${e.id} className=${'card' + (e.status === 'paid' ? ' paid' : overdue ? ' overdue' : '')}>
         <div className="card-top">
           <label className="emi-main">
-            <input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => onToggle(e)} aria-label=${'Mark EMI ' + e.no + ' paid'} />
-            <span><strong>EMI ${e.no}</strong><span className="meta due" style=${{ display: 'block' }}>${e.status === 'paid' ? 'Paid ' + fdate(e.paidDate) : (overdue ? 'Overdue, was due ' : 'Due ') + fdate(e.dueDate)}</span></span>
+            <input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => on.toggle(L.id, e)} aria-label=${'Mark payment ' + e.no + ' paid'} />
+            <span><strong>No. ${e.no}</strong><span className="meta due" style=${{ display: 'block' }}>${e.status === 'paid' ? 'Paid ' + fdate(e.paidDate) : (overdue ? 'Overdue, was due ' : 'Due ') + fdate(e.dueDate)}</span></span>
           </label>
           <strong>${inr(e.amount)}</strong>
         </div>
         <div className="meta">Principal ${inr(e.principal)}, interest ${inr(e.interest)}, balance ${inr(e.balance)}${e.note ? '. ' + e.note : ''}</div>
-        <div className="row-actions"><button className="btn quiet small" onClick=${() => onEditEmi(e)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDeleteEmi(e)}>Delete</button></div>
+        ${acts(e)}
       </article>`;
     })}
-    <div className="card-total"><span>${rows.length} EMI${rows.length === 1 ? '' : 's'} shown</span><strong>${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</strong></div>
+    <div className="card-total"><span>${rows.length} shown</span><strong>${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</strong></div>
   </div>`;
+
+  const table = html`<div className="table-wrap"><table>
+    <thead><tr><th>Paid</th><th>No.</th><th>Due</th><th className="num">Amount</th><th className="num">Principal</th><th className="num">Interest</th><th className="num">Balance</th><th>Paid on</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>${rows.map(e => {
+      const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
+      return html`<tr key=${e.id} className=${e.status === 'paid' ? 'paid' : overdue ? 'overdue' : ''}>
+        <td><input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => on.toggle(L.id, e)} aria-label=${'Mark payment ' + e.no + ' paid'} /></td>
+        <td>${e.no}</td>
+        <td className="nowrap">${fdate(e.dueDate)}</td>
+        <td className="num"><strong>${inr(e.amount)}</strong></td>
+        <td className="num">${inr(e.principal)}</td>
+        <td className="num">${inr(e.interest)}</td>
+        <td className="num">${inr(e.balance)}</td>
+        <td className="nowrap">${e.status === 'paid' ? fdate(e.paidDate) : '—'}${e.note && html`<div className="meta">${e.note}</div>`}</td>
+        <td>${acts(e)}</td>
+      </tr>`;
+    })}</tbody>
+    <tfoot><tr><td colSpan="3">${rows.length} shown</td>
+      <td className="num">${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</td>
+      <td className="num">${inr(rows.reduce((a, e) => a + num(e.principal), 0))}</td>
+      <td className="num">${inr(rows.reduce((a, e) => a + num(e.interest), 0))}</td><td colSpan="3"></td></tr></tfoot>
+  </table></div>`;
+
   return html`<div>
+    <div className="loan-grid">
+      ${s.loanStats.map(x => html`<button key=${x.loan.id} className=${'loan-card' + (x.loan.id === L.id ? ' on' : '')} aria-pressed=${x.loan.id === L.id} onClick=${() => setSel(x.loan.id)}>
+        <span><span className=${pillCls(x.loan.type)}>${loanTypeById[x.loan.type].label}</span></span>
+        <strong>${loanName(x.loan)}</strong>
+        <span className="lc-amt">${inr(x.outstanding)} <small>left</small></span>
+        <span className="meta">${x.next ? 'Next ' + inr(x.next.amount) + ', ' + fdate(x.next.dueDate) : x.count ? 'All paid' : 'No schedule yet'}</span>
+        ${x.overdue.length > 0 && html`<span className="meta" style=${{ color: 'var(--danger)' }}>${x.overdue.length} overdue</span>`}
+      </button>`)}
+      <button className="loan-card add" onClick=${() => on.addLoan('personal')}>+ Add loan</button>
+    </div>
+
     <section className="box" style=${{ marginBottom: '20px' }}>
-      <div className="toolbar" style=${{ marginBottom: L.enabled ? '14px' : 0 }}>
-        <h2 style=${{ margin: 0 }}>${L.enabled ? (L.lender || 'Loan') : 'No loan added'}</h2>
+      <div className="toolbar">
+        <div><h2 style=${{ margin: 0 }}>${loanName(L)}</h2><p className="hint">${[loanTypeById[L.type].label, L.lender, L.accountNo && 'No. ' + L.accountNo].filter(Boolean).join(', ')}</p></div>
         <div className="left">
-          ${L.enabled && html`<button className="btn" onClick=${onRebuild}>Rebuild schedule</button>`}
-          <button className=${'btn' + (L.enabled ? '' : ' primary')} onClick=${onLoan}>${L.enabled ? 'Edit loan' : 'Set up loan'}</button>
+          <button className="btn primary" onClick=${() => on.prepay(L.id)}>Part payment</button>
+          <button className="btn" onClick=${() => on.editLoan(L.id)}>Edit loan</button>
+          <button className="btn" onClick=${() => on.rebuild(L.id)}>Rebuild schedule</button>
+          <button className="btn quiet danger" onClick=${() => on.deleteLoan(L.id)}>Delete</button>
         </div>
       </div>
-      ${L.enabled && html`<dl className="kv" style=${{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', columnGap: '28px' }}>
+      <dl className="kv" style=${{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', columnGap: '28px' }}>
         <div><dt>Loan amount</dt><dd>${inr(L.principal)}</dd></div>
         <div><dt>Interest rate</dt><dd>${num(L.rate)}% a year</dd></div>
-        <div><dt>Tenure</dt><dd>${Math.round(num(L.tenureMonths))} months</dd></div>
-        <div><dt>EMI</dt><dd>${inr(num(L.emi) || calcEmi(L.principal, L.rate, L.tenureMonths))}</dd></div>
-        <div><dt>Paid so far</dt><dd>${inr(s.emiPaid)}</dd></div>
-        <div><dt>Outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
-      </dl>`}
+        <div><dt>Repayment</dt><dd>${repayById[kind].short}</dd></div>
+        <div><dt>Tenure</dt><dd>${Math.round(num(L.tenureMonths)) || '—'} months</dd></div>
+        ${L.loanDate && html`<div><dt>Loan date</dt><dd>${fdate(L.loanDate)}</dd></div>`}
+        <div><dt>${kind === 'emi' ? 'Current EMI' : kind === 'interest' ? 'Next interest' : 'Due at the end'}</dt><dd>${nextAmt ? inr(nextAmt) : '—'}</dd></div>
+        <div><dt>${kind === 'bullet' ? 'Due on' : 'Ends'}</dt><dd>${st.end ? fdate(st.end) : '—'}</dd></div>
+        <div><dt>Paid so far</dt><dd>${inr(st.paidAmt)}</dd></div>
+        <div><dt>Interest paid</dt><dd>${inr(st.interestPaid)}</dd></div>
+        <div><dt>Part payments</dt><dd>${inr(st.prepaid)}</dd></div>
+        <div><dt>Outstanding</dt><dd>${inr(st.outstanding)}</dd></div>
+        <div><dt>Money went to</dt><dd>${L.use === 'seller' ? 'Seller' : 'My account'}</dd></div>
+      </dl>
+      ${L.type === 'gold' && html`<div style=${{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+        <h3 style=${{ fontSize: '14px', marginBottom: '8px' }}>Gold pledged</h3>
+        <dl className="kv" style=${{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', columnGap: '28px' }}>
+          <div><dt>Weight</dt><dd>${num(g.weight) ? num(g.weight) + ' g' : '—'}</dd></div>
+          <div><dt>Purity</dt><dd>${g.purity || '—'}</dd></div>
+          <div><dt>Value at pledge</dt><dd>${st.goldValue ? inr(r2(st.goldValue)) : '—'}</dd></div>
+          <div><dt>Loan to value</dt><dd>${st.goldValue ? Math.round(num(L.principal) / st.goldValue * 1000) / 10 + '%' : '—'}</dd></div>
+          <div><dt>Pledge / receipt no.</dt><dd>${g.pledgeNo || '—'}</dd></div>
+        </dl></div>`}
+      ${L.prepayments.length > 0 && html`<div style=${{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+        <h3 style=${{ fontSize: '14px', marginBottom: '6px' }}>Part payments</h3>
+        <ul className="recent">${[...L.prepayments].sort((a, b) => (a.date > b.date ? 1 : -1)).map(x => html`<li key=${x.id}>
+          <div><div><strong>${inr(x.amount)}</strong> on ${fdate(x.date)}</div><div className="meta">${kind !== 'emi' ? 'Reduced principal' : x.mode === 'emi' ? 'Reduced EMI' : 'Reduced tenure'}${x.note ? ', ' + x.note : ''}</div></div>
+          <button className="btn quiet small danger" onClick=${() => on.deletePrepay(L.id, x)}>Delete</button></li>`)}</ul>
+      </div>`}
     </section>
+
     <div className="toolbar">
       <div className="left">
-        <label className="visually-hidden" htmlFor="ef">Show EMIs</label>
+        <label className="visually-hidden" htmlFor="ef">Show payments</label>
         <select id="ef" className="filter" value=${show} onChange=${e => setShow(e.target.value)}>
-          <option value="all">All EMIs</option><option value="pending">Pending</option><option value="paid">Paid</option>
+          <option value="all">All payments</option><option value="pending">Pending</option><option value="paid">Paid</option>
         </select>
-        <span style=${{ color: 'var(--muted)', fontSize: '14px' }}>Tick an EMI when you pay it.${s.overdue.length > 0 ? ' ' + s.overdue.length + ' overdue.' : ''}</span>
+        <span style=${{ color: 'var(--muted)', fontSize: '14px' }}>Tick each one when you pay it.${st.overdue.length > 0 ? ' ' + st.overdue.length + ' overdue.' : ''}</span>
       </div>
-      <button className="btn" onClick=${onAddEmi}>Add EMI</button>
+      <button className="btn" onClick=${() => on.addRow(L.id)}>Add row</button>
     </div>
-    ${data.emis.length === 0
-      ? html`<div className="box empty"><p>No EMIs yet. Set up your loan to create the whole schedule at once, or add EMIs one by one.</p></div>`
-      : rows.length === 0 ? html`<div className="box empty"><p>No ${show} EMIs.</p></div>`
-      : mobile ? emiCards
-      : html`<div className="table-wrap"><table>
-          <thead><tr><th>Paid</th><th>No.</th><th>Due</th><th className="num">EMI</th><th className="num">Principal</th><th className="num">Interest</th><th className="num">Balance</th><th>Paid on</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
-          <tbody>${rows.map(e => {
-            const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
-            return html`<tr key=${e.id} className=${e.status === 'paid' ? 'paid' : overdue ? 'overdue' : ''}>
-              <td><input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => onToggle(e)} aria-label=${'Mark EMI ' + e.no + ' paid'} /></td>
-              <td>${e.no}</td>
-              <td className="nowrap">${fdate(e.dueDate)}</td>
-              <td className="num"><strong>${inr(e.amount)}</strong></td>
-              <td className="num">${inr(e.principal)}</td>
-              <td className="num">${inr(e.interest)}</td>
-              <td className="num">${inr(e.balance)}</td>
-              <td className="nowrap">${e.status === 'paid' ? fdate(e.paidDate) : '—'}${e.note && html`<div className="meta">${e.note}</div>`}</td>
-              <td><div className="row-actions"><button className="btn quiet small" onClick=${() => onEditEmi(e)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDeleteEmi(e)}>Delete</button></div></td>
-            </tr>`;
-          })}</tbody>
-          <tfoot><tr><td colSpan="3">${rows.length} EMI${rows.length === 1 ? '' : 's'} shown</td>
-            <td className="num">${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</td>
-            <td className="num">${inr(rows.reduce((a, e) => a + num(e.principal), 0))}</td>
-            <td className="num">${inr(rows.reduce((a, e) => a + num(e.interest), 0))}</td><td colSpan="3"></td></tr></tfoot>
-        </table></div>`}
+    ${L.emis.length === 0
+      ? html`<div className="box empty"><p>No payment schedule yet. Edit the loan and fill in the amount, tenure and dates to create it, or add rows one by one.</p></div>`
+      : rows.length === 0 ? html`<div className="box empty"><p>No ${show} payments.</p></div>`
+      : mobile ? cards : table}
   </div>`;
 }
 
@@ -1035,7 +1345,7 @@ function Property({ data, update, onReset, drive, extra }) {
     <section className="box">
       <h2>Google Drive sync</h2>
       ${!GOOGLE_CLIENT_ID
-        ? html`<p className="hint" style=${{ marginBottom: '10px' }}>Drive sync is off. To turn it on, host this app (for example on GitHub Pages) and paste your Google OAuth client ID into <code>GOOGLE_CLIENT_ID</code> near the top of the script in <code>index.html</code>. Until then, use Import JSON and Export JSON.</p>`
+        ? html`<p className="hint" style=${{ marginBottom: '10px' }}>Drive sync is off. To turn it on, deploy with the included GitHub Actions workflow and set the <code>GOOGLE_CLIENT_ID</code> repository variable (see README). Until then, use Import JSON and Export JSON.</p>`
         : !drive.available
         ? html`<p className="hint">Google sign-in couldn't load here. Open the app from its hosted address to use Drive sync.</p>`
         : html`<p className="hint" style=${{ marginBottom: '14px' }}>${drive.linked
@@ -1200,26 +1510,47 @@ function App({ initial, initialLock, onLock }) {
     try {
       const parsed = normalize(JSON.parse(await file.text()));
       const apply = () => { setData({ ...parsed, updatedAt: new Date().toISOString() }); markExported(); setTab('overview'); setToast('Imported ' + file.name + '.'); };
-      if (data.payments.length || data.emis.length || data.property.name) {
+      if (data.payments.length || data.loans.length || data.property.name) {
         setConfirm({ title: 'Replace current data?', text: 'Importing ' + file.name + ' replaces everything currently in the app.', yes: 'Import and replace', run: apply });
       } else apply();
     } catch (err) { setToast(err instanceof SyntaxError ? 'That file is not valid JSON.' : err.message); }
   };
 
   const savePayment = p => { update(d => ({ ...d, payments: d.payments.some(x => x.id === p.id) ? d.payments.map(x => x.id === p.id ? p : x) : [...d.payments, p] })); setModal(null); setToast(modal.item ? 'Payment updated.' : 'Payment added.'); };
-  const saveEmi = em => { update(d => ({ ...d, emis: d.emis.some(x => x.id === em.id) ? d.emis.map(x => x.id === em.id ? em : x) : [...d.emis, em] })); setModal(null); setToast(modal.item ? 'EMI updated.' : 'EMI added.'); };
-  const saveLoan = (loan, gen) => {
-    update(d => ({ ...d, loan, emis: gen ? buildSchedule(loan, [...d.emis].sort((a, b) => a.no - b.no)) : d.emis }));
-    setModal(null); setToast(gen ? 'Loan saved and EMI schedule created.' : 'Loan saved.');
+  const [loanSel, setLoanSel] = useState(null);
+  const updLoan = (id, fn) => update(d => ({ ...d, loans: d.loans.map(l => l.id === id ? fn(l) : l) }));
+  const getLoan = id => data.loans.find(l => l.id === id);
+  const resched = l => { try { return { ...l, emis: buildSchedule(l, [...l.emis].sort((a, b) => a.no - b.no)) }; } catch (e) { setToast(e.message); return l; } };
+  const saveLoan = l => {
+    const exists = data.loans.some(x => x.id === l.id);
+    update(d => ({ ...d, loans: exists ? d.loans.map(x => x.id === l.id ? l : x) : [...d.loans, l] }));
+    setLoanSel(l.id); setModal(null); setToast(exists ? 'Loan saved.' : 'Loan added.');
   };
-  const rebuild = () => setConfirm({ title: 'Rebuild EMI schedule?', text: 'The schedule is recalculated from the loan terms. EMIs already marked paid stay paid; manual edits to amounts are replaced.', yes: 'Rebuild schedule',
-    run: () => { try { update(d => ({ ...d, emis: buildSchedule(d.loan, [...d.emis].sort((a, b) => a.no - b.no)) })); setToast('Schedule rebuilt.'); } catch (e) { setToast(e.message); } } });
-  const toggleEmi = e => update(d => ({ ...d, emis: d.emis.map(x => x.id === e.id ? { ...x, status: x.status === 'paid' ? 'pending' : 'paid', paidDate: x.status === 'paid' ? '' : todayISO() } : x) }));
+  const deleteLoan = id => { const l = getLoan(id); setConfirm({ title: 'Delete ' + loanName(l) + '?', text: 'The loan, its payment schedule and part payments are removed. This can\'t be undone unless you re-import an earlier JSON export.', yes: 'Delete loan', danger: true,
+    run: () => { update(d => ({ ...d, loans: d.loans.filter(x => x.id !== id) })); setLoanSel(null); setToast('Loan deleted.'); } }); };
+  const rebuild = id => setConfirm({ title: 'Rebuild the schedule?', text: 'The schedule is recalculated from the loan terms and part payments. Payments already marked paid stay as they are; manual edits to pending rows are replaced.', yes: 'Rebuild schedule',
+    run: () => { updLoan(id, resched); setToast('Schedule rebuilt.'); } });
+  const savePrepay = (id, x) => { updLoan(id, l => resched({ ...l, prepayments: [...l.prepayments, x] })); setModal(null); setToast('Part payment saved and schedule updated.'); };
+  const deletePrepay = (id, x) => setConfirm({ title: 'Delete this part payment?', text: 'The ' + inr(x.amount) + ' part payment on ' + fdate(x.date) + ' is removed and the schedule is recalculated without it.', yes: 'Delete', danger: true,
+    run: () => { updLoan(id, l => resched({ ...l, prepayments: l.prepayments.filter(y => y.id !== x.id) })); setToast('Part payment deleted.'); } });
+  const toggleRow = (id, e) => updLoan(id, l => ({ ...l, emis: l.emis.map(x => x.id === e.id ? { ...x, status: x.status === 'paid' ? 'pending' : 'paid', paidDate: x.status === 'paid' ? '' : todayISO() } : x) }));
+  const saveRow = (id, em) => { updLoan(id, l => ({ ...l, emis: l.emis.some(x => x.id === em.id) ? l.emis.map(x => x.id === em.id ? em : x) : [...l.emis, em] })); setModal(null); setToast('Saved.'); };
+  const deleteRow = (id, e) => setConfirm({ title: 'Delete payment ' + e.no + '?', text: 'This row is removed from the schedule.', yes: 'Delete', danger: true,
+    run: () => { updLoan(id, l => ({ ...l, emis: l.emis.filter(x => x.id !== e.id) })); setToast('Deleted.'); } });
+  const loanHandlers = {
+    addLoan: type => setModal({ type: 'loan', loan: blankLoan(type), isNew: true }),
+    editLoan: id => setModal({ type: 'loan', loan: getLoan(id), isNew: false }),
+    deleteLoan, rebuild,
+    prepay: id => setModal({ type: 'prepay', loanId: id }), deletePrepay,
+    toggle: toggleRow, deleteRow,
+    addRow: id => setModal({ type: 'row', loanId: id }),
+    editRow: (id, e) => setModal({ type: 'row', loanId: id, item: e }),
+  };
   const del = (kind, item, label) => setConfirm({ title: 'Delete ' + label + '?', text: 'This can\'t be undone unless you re-import an earlier JSON export.', yes: 'Delete', danger: true,
     run: () => { update(d => ({ ...d, [kind]: d[kind].filter(x => x.id !== item.id) })); setToast('Deleted.'); } });
 
   const go = (t, add) => { setTab(t); if (add) setModal({ type: 'payment' }); };
-  const tabs = [['overview', 'Overview'], ['payments', 'Payments', data.payments.length], ['emis', 'EMIs', data.emis.length], ['property', 'Property details']];
+  const tabs = [['overview', 'Overview'], ['payments', 'Payments', data.payments.length], ['loans', 'Loans', data.loans.length], ['property', 'Property details']];
   const driveSynced = connected && link && data.updatedAt === link.base && sync.status !== 'working';
   let driveUI = null;
   if (driveAvail) {
@@ -1259,10 +1590,10 @@ function App({ initial, initialLock, onLock }) {
           : html`<p className="of">Set the agreed land price to track how much is left to pay. <button className="btn small" onClick=${() => setTab('property')}>Add land price</button></p>`}
       </div>
       <dl className="ledger">
-          <div><dt>Spent from your pocket</dt><dd>${inr(s.pocket)}</dd></div>
+          <div><dt>Your own money spent</dt><dd>${inr(s.pocket)}</dd></div>
           <div><dt>Additional costs</dt><dd>${inr(s.additional)}</dd></div>
-          <div><dt>EMIs paid</dt><dd>${s.emiPaidCount} <small>of ${data.emis.length}</small></dd></div>
-          <div><dt>Loan outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+          <div><dt>Loan payments made</dt><dd>${s.emiPaidCount} <small>of ${s.emiCount}</small></dd></div>
+          <div><dt>Loans outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
       </dl>
     </section>
 
@@ -1274,22 +1605,20 @@ function App({ initial, initialLock, onLock }) {
       ${tab === 'payments' && html`<${Payments} data=${data}
           onAdd=${() => setModal({ type: 'payment' })} onEdit=${p => setModal({ type: 'payment', item: p })}
           onDelete=${p => del('payments', p, 'this payment of ' + inr(p.amount))} />`}
-      ${tab === 'emis' && html`<${Emis} data=${data} s=${s}
-          onLoan=${() => setModal({ type: 'loan' })} onRebuild=${rebuild}
-          onAddEmi=${() => setModal({ type: 'emi' })} onEditEmi=${e => setModal({ type: 'emi', item: e })}
-          onDeleteEmi=${e => del('emis', e, 'EMI ' + e.no)} onToggle=${toggleEmi} />`}
+      ${tab === 'loans' && html`<${Loans} data=${data} s=${s} sel=${loanSel} setSel=${setLoanSel} on=${loanHandlers} />`}
       ${tab === 'property' && html`<${Property} data=${data} update=${update}
           extra=${html`<${LockSettings} lock=${lock} onLockNow=${doLock}
             onEnable=${async pass => { setLock(await makeLock(pass)); setToast('App lock is on.'); }}
             onDisable=${async () => { setLock(null); setToast('App lock is off.'); }} />`}
           drive=${{ available: driveAvail, linked: !!link, connected, onConnect: connectDrive, onDisconnect: disconnectDrive, onSaveNow: saveToDrive }}
-          onReset=${() => setConfirm({ title: 'Clear all data?', text: 'Every payment, EMI and property detail is removed from this device.' + (link ? ' Your Drive file is left as it is, and this device is disconnected from it.' : ''), yes: 'Clear everything', danger: true,
+          onReset=${() => setConfirm({ title: 'Clear all data?', text: 'Every payment, loan and property detail is removed from this device.' + (link ? ' Your Drive file is left as it is, and this device is disconnected from it.' : ''), yes: 'Clear everything', danger: true,
             run: () => { if (link) { Drive.signOut(); saveLink(null); setConnected(false); setSync({ status: 'idle', message: '' }); } setData(blank()); setTab('overview'); setToast('All data cleared.'); } })} />`}
     </main>
 
     ${modal && modal.type === 'payment' && html`<${PaymentForm} item=${modal.item} onSave=${savePayment} onClose=${() => setModal(null)} />`}
-    ${modal && modal.type === 'emi' && html`<${EmiForm} item=${modal.item} nextNo=${data.emis.reduce((m, e) => Math.max(m, e.no), 0) + 1} onSave=${saveEmi} onClose=${() => setModal(null)} />`}
-    ${modal && modal.type === 'loan' && html`<${LoanForm} loan=${data.loan} landPrice=${data.property.totalCost} hasEmis=${data.emis.length > 0} onSave=${saveLoan} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'row' && getLoan(modal.loanId) && html`<${EmiForm} item=${modal.item} nextNo=${getLoan(modal.loanId).emis.reduce((m, e) => Math.max(m, e.no), 0) + 1} onSave=${em => saveRow(modal.loanId, em)} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'prepay' && getLoan(modal.loanId) && html`<${PrepaymentForm} loan=${getLoan(modal.loanId)} onSave=${x => savePrepay(modal.loanId, x)} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'loan' && html`<${LoanForm} loan=${modal.loan} isNew=${modal.isNew} landPrice=${data.property.totalCost} onSave=${saveLoan} onClose=${() => setModal(null)} />`}
     ${confirm && html`<${Modal} title=${confirm.title} onClose=${() => setConfirm(null)}
         footer=${html`<button className="btn" onClick=${() => setConfirm(null)}>Cancel</button>
           <button className=${'btn ' + (confirm.danger ? 'danger solid' : 'primary')} onClick=${() => { const run = confirm.run; setConfirm(null); run(); }}>${confirm.yes}</button>`}>
