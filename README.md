@@ -5,14 +5,13 @@ No backend. Data lives in a JSON file, optionally synced to your Google Drive. E
 
 ## 1. Host it free on GitHub Pages
 
-1. Create a new GitHub repository (for example `land-ledger`). It can be public or private*.
-2. Upload `index.html` (and this README) to the repository root.
-3. Go to **Settings → Pages**. Under *Build and deployment*, choose **Deploy from a branch**, branch `main`, folder `/ (root)`, and save.
-4. After a minute the app is live at `https://<your-username>.github.io/land-ledger/`.
+1. Create a **public** GitHub repository (for example `land-ledger`). Free GitHub plans only serve Pages from public repos.
+2. Upload everything in this folder, **including the hidden `.github/workflows/deploy.yml`**, to the repository root.
+3. Go to **Settings → Pages**. Under *Build and deployment → Source*, choose **GitHub Actions**.
+4. Every push to `main` now deploys the app to `https://<your-username>.github.io/land-ledger/`.
+   You can also run it by hand from the **Actions** tab → *Deploy to GitHub Pages* → **Run workflow**.
 
-*Private repos need a paid GitHub plan for Pages. Your data is never in the repo either way, only the app code.
-
-The app already works at this point with Import JSON / Export JSON.
+Only the app files (`index.html` and the icons) are published. The README and anything else in the repo are not.
 
 ## 2. Turn on Google Drive sync (optional, free)
 
@@ -27,7 +26,9 @@ The app already works at this point with Import JSON / Export JSON.
    - Application type: **Web application**.
    - Authorized JavaScript origins: `https://<your-username>.github.io` (no trailing slash, no repo path).
    - Create, then copy the **Client ID** (ends in `.apps.googleusercontent.com`).
-5. In `index.html`, find `const GOOGLE_CLIENT_ID = '';` and paste the ID between the quotes. Commit.
+5. In the GitHub repo, go to **Settings → Secrets and variables → Actions → Variables** tab → **New repository variable**.
+   Name: `GOOGLE_CLIENT_ID`. Value: the client ID. Save, then re-run the deploy workflow (Actions tab → Run workflow).
+   The ID never appears in your repo's code; the workflow inserts it into the published page at deploy time.
 6. Open the app, tap **Connect Google Drive**, and sign in. Google will warn that the app is unverified; choose *Continue* (it's your own app).
 
 ### How sync behaves
