@@ -1,0 +1,2274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Land Ledger</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2F6B4F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ECEFE7;--surface:#FAFBF7;--ink:#1C2620;--muted:#5A675F;--line:#D1D8CB;
+  --accent:#2F6B4F;--accent-ink:#FFFFFF;--accent-soft:#DAE7DD;
+  --ochre:#9A6B16;--ochre-soft:#F1E5C8;--danger:#A2392A;--danger-soft:#F5DDD7;
+  --hatch:#B9C2B2;--shadow:0 1px 2px rgba(28,38,32,.06),0 8px 24px rgba(28,38,32,.06);
+  color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#131915;--surface:#1A221D;--ink:#E3E9E2;--muted:#97A59C;--line:#2D3931;
+    --accent:#72B592;--accent-ink:#0F1A14;--accent-soft:#213A2D;
+    --ochre:#D8A94F;--ochre-soft:#3A301F;--danger:#E27E6B;--danger-soft:#3E2621;
+    --hatch:#3A4840;--shadow:0 1px 2px rgba(0,0,0,.3);color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131915;--surface:#1A221D;--ink:#E3E9E2;--muted:#97A59C;--line:#2D3931;
+  --accent:#72B592;--accent-ink:#0F1A14;--accent-soft:#213A2D;
+  --ochre:#D8A94F;--ochre-soft:#3A301F;--danger:#E27E6B;--danger-soft:#3E2621;
+  --hatch:#3A4840;--shadow:0 1px 2px rgba(0,0,0,.3);color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 20px 64px}
+h1,h2,h3{margin:0;line-height:1.2}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;padding:8px 0 20px;border-bottom:1px solid var(--line)}
+.top h1{font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.02em}
+.top .sub{color:var(--muted);margin-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.quiet:hover{color:var(--ink);background:var(--bg)}
+.btn.danger{color:var(--danger)}
+.btn.danger.solid{background:var(--danger);border-color:var(--danger);color:#fff}
+.notice{margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--ochre-soft);color:var(--ink);font-size:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(220px,340px) 1fr;gap:clamp(20px,5vw,56px);align-items:center;padding:32px 0 28px}
+@media (max-width:720px){.hero{grid-template-columns:1fr}}
+.plot{margin:0}
+.plot svg{width:100%;height:auto;display:block}
+.plot figcaption{margin-top:8px;color:var(--muted);font-size:14px}
+.plot-unpaid{fill:url(#hatch)}
+.hatch-line{stroke:var(--hatch);stroke-width:2}
+.plot-paid{fill:var(--accent)}
+.plot-edge{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-dasharray:6 4;stroke-linejoin:round}
+.stone{fill:var(--surface);stroke:var(--ink);stroke-width:1.6}
+.fill-rect{transition:y .7s ease,height .7s ease}
+.level{stroke:var(--accent);stroke-width:1.2}
+.plot-label{font-size:11px;fill:var(--muted);font-family:inherit}
+@media (prefers-reduced-motion:reduce){.fill-rect{transition:none}}
+.hero .lede{color:var(--muted);font-weight:600}
+.hero .big{font-size:clamp(34px,6vw,54px);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-top:4px}
+.hero .of{margin-top:8px;font-size:16px;max-width:52ch}
+.hero .of strong{color:var(--danger)}
+.ledger{margin:22px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));border-top:1px solid var(--line)}
+.ledger div{padding:12px 16px 12px 0;border-bottom:1px solid var(--line)}
+.ledger dt{font-size:13px;color:var(--muted)}
+.ledger dd{margin:2px 0 0;font-weight:700;font-size:18px}
+.ledger dd small{font-weight:500;font-size:13px;color:var(--muted)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{background:none;border:0;padding:10px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .count{font-weight:500;color:var(--muted);margin-left:4px}
+.panel{padding-top:24px}
+
+.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:28px}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+.box + .box{margin-top:20px}
+.box h2{font-size:17px;font-weight:700;margin-bottom:14px}
+.box .hint{color:var(--muted);font-size:14px}
+
+.bars{display:grid;gap:12px}
+.bar-head{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.bar-head span:last-child{font-weight:600}
+.track{height:8px;border-radius:4px;background:var(--bg);margin-top:5px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.track i.extra{background:var(--ochre)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:14px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:var(--accent);vertical-align:-1px}
+.legend span.extra::before{background:var(--ochre)}
+
+.kv{display:grid;gap:10px}
+.kv div{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:600;text-align:right}
+.alert{padding:10px 12px;border-radius:8px;background:var(--danger-soft);font-size:14px;margin-bottom:14px}
+
+.recent{list-style:none;margin:0;padding:0}
+.recent li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.recent li:first-child{border-top:0;padding-top:0}
+.recent .meta{color:var(--muted);font-size:13px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.toolbar .left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:13px;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 14px;border-top:1px solid var(--line);vertical-align:top}
+tbody tr:first-child td{border-top:0}
+td.num,th.num{text-align:right;white-space:nowrap}
+td.nowrap{white-space:nowrap}
+td .meta{color:var(--muted);font-size:13px}
+tfoot td{font-weight:700;border-top:2px solid var(--line)}
+tr.paid td{color:var(--muted)}
+tr.overdue td:nth-child(3){color:var(--danger);font-weight:600}
+.row-actions{display:flex;gap:2px;justify-content:flex-end}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.extra{background:var(--ochre-soft);color:var(--ochre)}
+.check{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty p{max-width:44ch;margin:0 auto 14px}
+
+/* forms */
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.field{display:grid;gap:5px;font-size:13px;color:var(--muted);font-weight:500}
+.field.wide{grid-column:1/-1}
+.field input,.field select,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:15px}
+.field textarea{min-height:80px;resize:vertical}
+.field .help{font-weight:400}
+.checkline{display:flex;gap:8px;align-items:flex-start;font-size:14px;grid-column:1/-1}
+.checkline input{margin-top:3px}
+.calc{grid-column:1/-1;padding:10px 12px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+select.filter{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+
+.overlay{position:fixed;inset:0;background:rgba(10,16,12,.45);display:grid;place-items:center;padding:16px;z-index:20;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.modal{background:var(--surface);border-radius:14px;padding:22px;width:100%;max-width:560px;max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h2{font-size:19px;margin-bottom:16px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.modal .err{color:var(--danger);font-size:14px;margin-top:12px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.danger-zone{margin-top:24px;border-color:var(--danger-soft)}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* hero areas */
+.hero{grid-template-areas:"plot head" "plot ledger";align-content:center}
+.hero .plot{grid-area:plot}
+.hero .headline{grid-area:head;align-self:end}
+.hero .ledger{grid-area:ledger;align-self:start}
+@media (max-width:720px){.hero{grid-template-columns:minmax(0,260px) 1fr;grid-template-areas:"plot head" "ledger ledger"}}
+
+/* card lists (phones) */
+.cards{display:grid;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:6px;box-shadow:var(--shadow)}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card .meta{color:var(--muted);font-size:13px}
+.card .row-actions{justify-content:flex-start;margin-left:-10px}
+.card.paid{opacity:.72}
+.card.overdue{border-color:var(--danger)}
+.card.overdue .due{color:var(--danger);font-weight:600}
+.emi-main{display:flex;gap:12px;align-items:center;cursor:pointer;min-width:0}
+.emi-main .check{width:22px;height:22px;flex:none}
+.card-total{display:flex;justify-content:space-between;padding:6px 2px;color:var(--muted);font-size:14px}
+.card-total strong{color:var(--ink)}
+
+/* drive sync */
+.sync{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);padding:0 4px;white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
+.sync i.warn{background:var(--ochre)}
+.sync i.err{background:var(--danger)}
+.notice.conflict{background:var(--danger-soft)}
+.notice .btns{display:flex;gap:8px;flex-wrap:wrap}
+.steps{margin:0 0 14px;padding-left:20px;color:var(--muted);font-size:14px}
+.steps li{margin-bottom:4px}
+code{font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px}
+
+@media (max-width:640px){
+  .wrap{padding:12px 14px 48px}
+  .top{flex-direction:column;align-items:stretch;gap:12px;padding:4px 0 14px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .actions .btn{justify-content:center;padding:10px 12px}
+  .actions .full{grid-column:1/-1}
+  .actions .sync{grid-column:1/-1;justify-content:center}
+  .hero{grid-template-columns:96px 1fr;gap:10px 16px;padding:18px 0 20px}
+  .plot figcaption{font-size:12px;margin-top:4px}
+  .hero .big{font-size:30px}
+  .hero .of{font-size:14px}
+  .hero .of .btn{margin-top:6px}
+  .ledger{grid-template-columns:1fr 1fr;margin-top:6px}
+  .ledger div{padding:10px 10px 10px 0}
+  .ledger dd{font-size:16px}
+  .tab{padding:10px 12px}
+  .panel{padding-top:16px}
+  .box{padding:16px;border-radius:12px}
+  .box + .box{margin-top:14px}
+  .cols{gap:14px}
+  .toolbar .btn.primary{flex:1;justify-content:center}
+  .field input,.field select,.field textarea,select.filter{font-size:16px}
+  select.filter{width:100%}
+  .toolbar .left{flex:1}
+  .overlay{align-items:end;padding:0}
+  .modal{border-radius:16px 16px 0 0;max-height:92vh;padding:18px 16px 0}
+  .modal .foot{position:sticky;bottom:0;background:var(--surface);padding:12px 0 calc(14px + env(safe-area-inset-bottom,0px));margin-top:12px}
+  .modal .foot .btn{flex:1;justify-content:center;padding:11px}
+  .row-actions .btn.small{padding:8px 10px}
+  .notice{font-size:13px}
+}
+.lock-wrap{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:20px}
+.lock{max-width:380px;width:100%;display:grid;gap:14px}
+.lock svg{width:64px;height:auto}
+.lock h1{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.lock .err{color:var(--danger);font-size:14px}
+.lock .btn{justify-content:center;padding:11px}
+.pw-fields{display:grid;gap:12px;max-width:360px;margin-bottom:14px}
+.pw-fields .err{color:var(--danger);font-size:14px}
+.toward{display:flex;gap:10px;align-items:flex-start;grid-column:1/-1;padding:12px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--surface)}
+.toward.on{border-color:var(--accent);background:var(--accent-soft)}
+.toward input{margin-top:2px;flex:none}
+.toward strong{display:block;font-size:14px}
+.toward span{font-size:13px;color:var(--muted)}
+.split{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--bg);margin:4px 0 14px}
+.split i{display:block;height:100%}
+.split .s-loan{background:var(--ochre)}
+.split .s-paid{background:var(--accent)}
+.legend span.loan::before{background:var(--ochre)}
+.legend span.due::before{background:var(--line)}
+.calc.warn{background:var(--danger-soft)}
+.loan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.loan-card{display:grid;gap:4px;align-content:start;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;box-shadow:var(--shadow);font:inherit;color:inherit}
+.loan-card:hover{border-color:var(--muted)}
+.loan-card.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.loan-card .lc-amt{font-weight:700;font-size:18px;margin-top:4px}
+.loan-card .lc-amt small{font-weight:500;font-size:13px;color:var(--muted)}
+.loan-card .meta{color:var(--muted);font-size:13px}
+.loan-card.add{align-content:center;justify-items:center;border-style:dashed;color:var(--muted);font-weight:600;min-height:120px;box-shadow:none}
+.pill.plain{background:var(--bg);color:var(--muted)}
+@media (max-width:640px){
+  .loan-grid{grid-auto-flow:column;grid-auto-columns:78%;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+  .loan-card{scroll-snap-align:start}
+}
+.nw-head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+.nw-big{font-size:clamp(32px,5.5vw,48px);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:4px 0 6px}
+.nw-big.neg{color:var(--danger)}
+.up{color:var(--accent);font-weight:600}
+.down{color:var(--danger);font-weight:600}
+.nw-split{margin-bottom:20px}
+.nw-cols{grid-template-columns:1fr 1fr}
+@media (max-width:820px){.nw-cols{grid-template-columns:1fr}}
+.nw-list li{align-items:flex-start}
+.nw-right{text-align:right;flex:none}
+.nw-right .row-actions{justify-content:flex-end;margin-right:-8px}
+.nw-chart{width:100%;height:auto;display:block}
+.nw-zero{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.nw-line{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.nw-dot{fill:var(--surface);stroke:var(--accent);stroke-width:2.5}
+.nw-label{font-size:12px;fill:var(--muted);font-family:inherit}
+.nw-label.strong{fill:var(--ink);font-weight:700}
+@media (max-width:640px){.nw-head .btn{width:100%;justify-content:center}}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:16px}
+.seg button{border:0;background:transparent;padding:9px 10px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.pay-section + .pay-section{margin-top:24px}
+.pay-h{font-size:15px;font-weight:700;margin:0 0 10px}
+tr.planned td{background:color-mix(in srgb, var(--ochre-soft) 45%, transparent)}
+.card.planned{border-style:dashed}
+.late{color:var(--danger);font-weight:600}
+.split .s-plan{background:repeating-linear-gradient(45deg,var(--accent) 0 3px,var(--accent-soft) 3px 7px)}
+.legend span.plan::before{background:repeating-linear-gradient(45deg,var(--accent) 0 2px,var(--accent-soft) 2px 4px)}
+.prop-bar{display:flex;gap:8px;overflow-x:auto;padding:14px 0 2px;scrollbar-width:thin}
+.prop-tab{display:grid;gap:1px;text-align:left;flex:none;max-width:230px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font:inherit;color:inherit}
+.prop-tab:hover{border-color:var(--muted)}
+.prop-tab .pt-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prop-tab .pt-meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prop-tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.prop-tab.on .pt-meta{color:var(--accent-ink);opacity:.8}
+.prop-tab.add{border-style:dashed;color:var(--muted);font-weight:600;align-content:center}
+.prop-tab.nw{margin-left:auto}
+.nw-prop{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+@media (max-width:640px){.prop-tab.nw{margin-left:0}}
+.help-steps{margin:0;padding-left:20px;display:grid;gap:10px;font-size:14px}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+.field .help a{color:var(--accent);font-weight:600}
+.modal .foot{align-items:center}
+.am{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.am-step{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px 12px;border-top:1px solid var(--line)}
+.am-step:first-child{border-top:0}
+.am-label{font-size:14px}
+.am-formula{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.6}
+.meta.chg{color:var(--ochre);font-weight:600}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const { useState, useEffect, useMemo, useRef } = React;
+const html = htm.bind(React.createElement);
+const STORE_KEY = 'land-ledger:v1';
+
+/* ---------- data model ---------- */
+const CATS = [
+  { id: 'booking', label: 'Booking advance', price: true },
+  { id: 'seller', label: 'Payment to seller', price: true },
+  { id: 'legal', label: 'Legal verification' },
+  { id: 'registration', label: 'Registration & stamp duty' },
+  { id: 'documents', label: 'EC, patta & documents' },
+  { id: 'survey', label: 'Survey & measurement' },
+  { id: 'broker', label: 'Broker commission' },
+  { id: 'loanfees', label: 'Loan processing fees' },
+  { id: 'development', label: 'Fencing & development' },
+  { id: 'other', label: 'Other' },
+];
+const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+const MODES = ['Bank transfer', 'UPI', 'Cheque', 'Demand draft', 'Cash', 'Card'];
+const UNITS = ['cents', 'sq ft', 'acres', 'grounds', 'sq m', 'hectares'];
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const r2 = n => Math.round(n * 100) / 100;
+const pad = n => String(n).padStart(2, '0');
+const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+function addMonths(iso, i) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  const first = new Date(y, m - 1 + i, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return first.getFullYear() + '-' + pad(first.getMonth() + 1) + '-' + pad(Math.min(d, last));
+}
+const inr = n => '₹' + num(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const fdate = iso => {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const LOAN_TYPES = [
+  { id: 'land', label: 'Land loan', repay: 'emi', use: 'seller', rateType: 'floating' },
+  { id: 'personal', label: 'Personal loan', repay: 'emi', use: 'self', rateType: 'fixed' },
+  { id: 'gold', label: 'Gold loan', repay: 'bullet', use: 'self', rateType: 'fixed' },
+  { id: 'other', label: 'Other loan', repay: 'emi', use: 'self', rateType: 'fixed' },
+];
+const loanTypeById = Object.fromEntries(LOAN_TYPES.map(t => [t.id, t]));
+const REPAY = [
+  { id: 'emi', label: 'EMI every month', short: 'Monthly EMI', due: 'First EMI date' },
+  { id: 'interest', label: 'Interest every month, principal at the end', short: 'Monthly interest, principal at end', due: 'First interest due date' },
+  { id: 'bullet', label: 'Everything at the end (bullet)', short: 'Bullet repayment at end', due: 'Repayment due date' },
+];
+const repayById = Object.fromEntries(REPAY.map(r => [r.id, r]));
+const PURITY = ['24K', '22K', '20K', '18K', 'Other'];
+const loanName = l => l.name || loanTypeById[l.type].label;
+
+const blankLoan = (type = 'land') => ({
+  id: uid(), type, name: loanTypeById[type].label, lender: '', accountNo: '',
+  principal: '', rate: '', tenureMonths: '', emi: '', loanDate: '', startDate: '',
+  repayment: loanTypeById[type].repay, use: loanTypeById[type].use,
+  rateType: loanTypeById[type].rateType, rateAdjust: 'emi', prepayChargePct: '', chargeGst: true, rateChanges: [],
+  gold: { weight: '', purity: '22K', ratePerGram: '', pledgeNo: '' },
+  notes: '', prepayments: [], emis: [],
+});
+
+const blankProperty = () => ({
+  id: uid(),
+  property: { name: '', location: '', surveyNo: '', area: '', areaUnit: 'cents', totalCost: '', seller: '', agreementDate: '', notes: '', marketValue: '', includeInNetWorth: true },
+  payments: [], loans: [],
+});
+const blank = () => ({ app: 'land-ledger', version: 3, updatedAt: null, properties: [blankProperty()], networth: blankNetworth() });
+const propLabel = (pr, i) => (pr.property.name || '').trim() || 'Property ' + (i + 1);
+
+const normPre = arr => (Array.isArray(arr) ? arr : []).map(x => ({
+  id: x.id || uid(), date: x.date || '', amount: num(x.amount), mode: x.mode === 'emi' ? 'emi' : 'tenure', note: x.note || '', charge: num(x.charge) }));
+const normRates = arr => (Array.isArray(arr) ? arr : []).map(x => ({
+  id: x.id || uid(), date: x.date || '', rate: num(x.rate), adjust: x.adjust === 'emi' ? 'emi' : 'tenure', note: x.note || '' }));
+const normEmis = arr => (Array.isArray(arr) ? arr : []).map((e, i) => ({
+  id: e.id || uid(), no: e.no || i + 1, dueDate: e.dueDate || '', amount: num(e.amount),
+  principal: num(e.principal), interest: num(e.interest), balance: num(e.balance),
+  status: e.status === 'paid' ? 'paid' : 'pending', paidDate: e.paidDate || '', note: e.note || '',
+  rate: e.rate === undefined || e.rate === '' ? '' : num(e.rate),
+  open: e.open === undefined || e.open === '' ? '' : num(e.open), calc: e.calc && typeof e.calc === 'object' ? e.calc : null }));
+function normLoan(l) {
+  const t = loanTypeById[l.type] ? l.type : 'other';
+  const b = blankLoan(t);
+  return {
+    ...b, ...l, id: l.id || b.id, type: t,
+    repayment: repayById[l.repayment] ? l.repayment : b.repayment,
+    use: l.use === 'seller' || l.use === 'self' ? l.use : b.use,
+    gold: { ...b.gold, ...(l.gold || {}) },
+    rateType: l.rateType === 'fixed' || l.rateType === 'floating' ? l.rateType : b.rateType,
+    chargeGst: l.chargeGst !== false,
+    rateAdjust: l.rateAdjust === 'tenure' ? 'tenure' : 'emi',
+    rateChanges: normRates(l.rateChanges),
+    prepayments: normPre(l.prepayments), emis: normEmis(l.emis),
+  };
+}
+
+function normPayments(arr) {
+  return (Array.isArray(arr) ? arr : []).map(p => ({
+    id: p.id || uid(), date: p.date || '', category: catById[p.category] ? p.category : 'other',
+    description: p.description || '', paidTo: p.paidTo || '', mode: p.mode || '', reference: p.reference || '',
+    amount: num(p.amount),
+    towardPrice: typeof p.towardPrice === 'boolean' ? p.towardPrice : !!(catById[p.category] && catById[p.category].price),
+    status: p.status === 'planned' ? 'planned' : 'paid',
+  }));
+}
+function normLoansOf(raw) {
+  if (Array.isArray(raw.loans)) return raw.loans.map(normLoan);
+  // version 1 files had a single "loan" plus a top-level "emis" list
+  const l = raw.loan || {};
+  const oldEmis = Array.isArray(raw.emis) ? raw.emis : [];
+  if (!l.enabled && !oldEmis.length) return [];
+  return [normLoan({ ...l, id: uid(), type: l.enabled ? 'land' : 'other', name: l.enabled ? 'Land loan' : 'Loan',
+    repayment: 'emi', use: l.enabled && l.paidToSeller !== false ? 'seller' : 'self', emis: oldEmis })];
+}
+function normProperty(raw, legacyNw) {
+  const b = blankProperty();
+  const prop = { ...b.property, ...(raw.property || {}) };
+  if (legacyNw) {
+    if (!prop.marketValue && legacyNw.landValue) prop.marketValue = legacyNw.landValue;
+    if (legacyNw.includeLand === false) prop.includeInNetWorth = false;
+  }
+  prop.includeInNetWorth = prop.includeInNetWorth !== false;
+  return { id: raw.id || b.id, property: prop, payments: normPayments(raw.payments), loans: normLoansOf(raw) };
+}
+function normalize(raw) {
+  if (!raw || typeof raw !== 'object' || (!Array.isArray(raw.properties) && !raw.property && !Array.isArray(raw.payments)))
+    throw new Error('This file is not a Land Ledger JSON export.');
+  const properties = Array.isArray(raw.properties) && raw.properties.length
+    ? raw.properties.map(x => normProperty(x))
+    : [normProperty(raw, raw.networth)];   // versions 1 and 2: one property at the top level
+  return { app: 'land-ledger', version: 3, updatedAt: raw.updatedAt || null, properties, networth: normNetworth(raw.networth) };
+}
+const viewOf = (pr, data) => ({ property: pr.property, payments: pr.payments, loans: pr.loans, networth: data.networth });
+
+function calcEmi(P, rate, n) {
+  P = num(P); n = Math.round(num(n)); const r = num(rate) / 1200;
+  if (!P || !n) return 0;
+  if (!r) return r2(P / n);
+  const f = Math.pow(1 + r, n);
+  return r2(P * r * f / (f - 1));
+}
+
+function rateAt(loan, date) {
+  let r = num(loan.rate);
+  if (loan.rateType === 'floating') [...(loan.rateChanges || [])].filter(x => x.date && x.date <= date)
+    .sort((a, b) => (a.date > b.date ? 1 : -1)).forEach(x => { r = num(x.rate); });
+  return r;
+}
+function chargeFor(loan, amount) {
+  if (loan.rateType !== 'fixed') return 0;
+  const pct = num(loan.prepayChargePct);
+  return pct > 0 ? r2(num(amount) * pct / 100 * (loan.chargeGst ? 1.18 : 1)) : 0;
+}
+
+function buildSchedule(loan, old) {
+  const P = num(loan.principal), n = Math.round(num(loan.tenureMonths));
+  let ratePct = num(loan.rate), r = ratePct / 1200;
+  const kind = loan.repayment || 'emi';
+  if (!P || !n || !loan.startDate) throw new Error('Enter the loan amount, tenure and ' + repayById[kind].due.toLowerCase() + ' to create the schedule.');
+  let emi = kind === 'emi' ? (num(loan.emi) || calcEmi(P, ratePct, n)) : 0;
+  if (kind === 'emi' && emi <= r2(P * r)) throw new Error('The EMI is too low to cover the monthly interest. Check the EMI amount or leave it blank to calculate it.');
+  // how the current EMI was worked out; attached to the first row that uses it
+  let pending = kind === 'emi' ? { why: num(loan.emi) ? 'given' : 'start', bal: P, rate: ratePct, months: n, emi } : null;
+  // part payments and (for floating loans) rate changes, in date order; a rate change on the same day goes first
+  const events = [
+    ...(loan.prepayments || []).filter(x => x.date && num(x.amount) > 0).map(x => ({ ...x, ev: 'pre' })),
+    ...(loan.rateType === 'floating' ? (loan.rateChanges || []) : []).filter(x => x.date && x.rate !== '').map(x => ({ ...x, ev: 'rate' })),
+  ].sort((a, b) => (a.date === b.date ? (a.ev === 'rate' ? -1 : 1) : a.date > b.date ? 1 : -1));
+  let bal = P, ei = 0;
+  const applyEvents = (before, i) => {
+    while (ei < events.length && events[ei].date < before) {
+      const x = events[ei++];
+      if (x.ev === 'pre') {
+        bal = Math.max(0, r2(bal - num(x.amount)));
+        if (kind === 'emi' && x.mode === 'emi' && bal > 0) { emi = calcEmi(bal, ratePct, Math.max(1, n - i)); pending = { why: 'prepay', bal, rate: ratePct, months: Math.max(1, n - i), emi, date: x.date, amount: num(x.amount) }; }
+      } else {
+        ratePct = num(x.rate); r = ratePct / 1200;
+        // "emi": EMI recalculated so the loan still ends on time; "tenure": EMI stays and the months change,
+        // unless the old EMI can no longer cover the interest, in which case it has to rise
+        if (kind === 'emi' && bal > 0 && (x.adjust === 'emi' || emi <= r2(bal * r) * 1.02)) {
+          emi = calcEmi(bal, ratePct, Math.max(1, n - i));
+          pending = { why: x.adjust === 'emi' ? 'rate' : 'raise', bal, rate: ratePct, months: Math.max(1, n - i), emi, date: x.date };
+        } else if (kind === 'emi' && bal > 0) pending = { why: 'rate-keep', bal, rate: ratePct, emi, date: x.date };
+      }
+    }
+  };
+  const keep = (prev, row) => {
+    const paid = prev && prev.status === 'paid';
+    return { ...row, id: prev ? prev.id : uid(), status: paid ? 'paid' : 'pending', paidDate: paid ? prev.paidDate : '', note: prev ? prev.note : '' };
+  };
+
+  if (kind === 'bullet') {
+    let accrued = 0;
+    for (let i = 0; i < n; i++) { applyEvents(addMonths(loan.startDate, i - (n - 1)), i); accrued = r2(accrued + bal * r); }
+    if (bal <= 0.005 && accrued <= 0.005) return [];
+    const prev = old[0];
+    const paidAmt = prev && prev.status === 'paid' && num(prev.amount) > 0;
+    return [keep(prev, { no: 1, dueDate: loan.startDate, amount: paidAmt ? num(prev.amount) : r2(bal + accrued), principal: bal, interest: paidAmt ? num(prev.interest) : accrued, balance: 0, rate: ratePct, open: bal, calc: { why: 'bullet', months: n } })];
+  }
+
+  const rows = [];
+  for (let i = 0; bal > 0.005 && i < n + 600; i++) {
+    const due = addMonths(loan.startDate, i);
+    applyEvents(due, i);
+    if (bal <= 0.005) break;
+    const prev = old[i];
+    const open = bal;
+    let interest, principal, amount, calc = null;
+    const wasPaid = prev && prev.status === 'paid' && num(prev.amount) > 0;
+    if (wasPaid) {
+      interest = num(prev.interest); principal = Math.min(bal, num(prev.principal)); amount = num(prev.amount); calc = prev.calc || null;
+    } else if (kind === 'interest') {
+      interest = r2(bal * r); principal = i >= n - 1 ? r2(bal) : 0; amount = r2(interest + principal);
+    } else {
+      interest = r2(bal * r); principal = r2(emi - interest); amount = emi;
+      if (principal >= bal || (i >= n - 1 && bal - principal <= Math.max(1, emi * 0.02))) { principal = r2(bal); amount = r2(principal + interest); }
+      if (pending) { calc = pending; pending = null; }
+    }
+    bal = Math.max(0, r2(bal - principal));
+    rows.push(keep(prev, { no: i + 1, dueDate: due, amount, principal, interest, balance: bal, rate: ratePct, open, calc }));
+    if (kind === 'interest' && i >= n - 1) break;
+  }
+  return rows;
+}
+
+function scheduleStats(rows) {
+  const pending = rows.filter(e => e.status !== 'paid');
+  return { interest: rows.reduce((a, e) => a + num(e.interest), 0), months: rows.length, end: rows.length ? rows[rows.length - 1].dueDate : '', emi: pending.length ? pending[0].amount : 0 };
+}
+
+function loanStats(l, today) {
+  const paid = l.emis.filter(e => e.status === 'paid');
+  const pending = l.emis.filter(e => e.status !== 'paid').sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  const principalPaid = paid.reduce((a, e) => a + num(e.principal), 0);
+  const prepaid = l.prepayments.reduce((a, x) => a + num(x.amount), 0);
+  const P = num(l.principal);
+  const sorted = [...l.emis].sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  return {
+    loan: l,
+    paidCount: paid.length, count: l.emis.length,
+    paidAmt: paid.reduce((a, e) => a + num(e.amount), 0),
+    principalPaid, prepaid,
+    interestPaid: paid.reduce((a, e) => a + num(e.interest), 0),
+    scheduledInterest: l.emis.reduce((a, e) => a + num(e.interest), 0),
+    outstanding: P > 0 ? Math.max(0, P - principalPaid - prepaid) : pending.reduce((a, e) => a + num(e.principal), 0),
+    overdue: pending.filter(e => e.dueDate && e.dueDate < today),
+    next: pending.find(e => !e.dueDate || e.dueDate >= today) || null,
+    end: sorted.length ? sorted[sorted.length - 1].dueDate : '',
+    goldValue: num(l.gold && l.gold.weight) * num(l.gold && l.gold.ratePerGram),
+    charges: l.prepayments.reduce((a, x) => a + num(x.charge), 0),
+    currentRate: rateAt(l, today),
+  };
+}
+
+function summarize(data) {
+  const byCat = {}; CATS.forEach(c => byCat[c.id] = 0);
+  let totalPayments = 0;
+  const byCatToward = {}; CATS.forEach(c => byCatToward[c.id] = 0);
+  const paidPays = data.payments.filter(p => p.status !== 'planned');
+  const plannedPays = data.payments.filter(p => p.status === 'planned').sort((a, b) => (a.date > b.date ? 1 : -1));
+  paidPays.forEach(p => {
+    byCat[p.category] = (byCat[p.category] || 0) + num(p.amount); totalPayments += num(p.amount);
+    if (p.towardPrice) byCatToward[p.category] = (byCatToward[p.category] || 0) + num(p.amount);
+  });
+  const towardDirect = paidPays.filter(p => p.towardPrice).reduce((a, p) => a + num(p.amount), 0);
+  const plannedTotal = plannedPays.reduce((a, p) => a + num(p.amount), 0);
+  const plannedToward = plannedPays.filter(p => p.towardPrice).reduce((a, p) => a + num(p.amount), 0);
+  const additional = totalPayments - towardDirect;
+  const today = todayISO();
+  const ls = data.loans.map(l => loanStats(l, today));
+  const sum = (arr, k) => arr.reduce((a, x) => a + num(x[k]), 0);
+  const loanToSeller = data.loans.filter(l => l.use === 'seller').reduce((a, l) => a + num(l.principal), 0);
+  const loanToSelf = data.loans.filter(l => l.use !== 'seller').reduce((a, l) => a + num(l.principal), 0);
+  const towardPrice = towardDirect + loanToSeller;
+  const totalCost = num(data.property.totalCost);
+  const emiPaid = sum(ls, 'paidAmt'), prepaid = sum(ls, 'prepaid'), scheduledInterest = sum(ls, 'scheduledInterest'), charges = sum(ls, 'charges');
+  const overdue = ls.flatMap(x => x.overdue.map(e => ({ ...e, loan: x.loan })));
+  const nexts = ls.filter(x => x.next).map(x => ({ ...x.next, loan: x.loan })).sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  return {
+    byCat, byCatToward, totalPayments, towardDirect, additional, loanToSeller, loanToSelf, towardPrice, totalCost,
+    balance: Math.max(0, totalCost - towardPrice),
+    loanStats: ls, borrowed: loanToSeller + loanToSelf,
+    emiPaid, prepaid, emiPaidCount: sum(ls, 'paidCount'), emiCount: sum(ls, 'count'),
+    principalPaid: sum(ls, 'principalPaid'), interestPaid: sum(ls, 'interestPaid'), scheduledInterest,
+    loanOutstanding: sum(ls, 'outstanding'),
+    pocket: Math.max(0, totalPayments + emiPaid + prepaid + charges - loanToSelf), charges,
+    overdue, next: nexts[0] || null,
+    projected: totalCost + additional + scheduledInterest,
+    pct: totalCost > 0 ? Math.min(1, towardPrice / totalCost) : 0,
+    ownShare: Math.max(0, totalCost - loanToSeller),
+    ownRemaining: Math.max(0, totalCost - loanToSeller - towardDirect),
+    overpaid: totalCost > 0 ? Math.max(0, towardPrice - totalCost) : 0,
+    loanPct: totalCost > 0 ? loanToSeller / totalCost : 0,
+    planned: plannedPays, plannedTotal, plannedToward, plannedExtra: plannedTotal - plannedToward,
+    plannedLate: plannedPays.filter(p => p.date && p.date < today),
+    unplannedRemaining: Math.max(0, totalCost - loanToSeller - towardDirect - plannedToward),
+  };
+}
+
+/* ---------- net worth ---------- */
+const NW_ASSET_CATS = [
+  { id: 'bank', label: 'Bank & cash' }, { id: 'fd', label: 'Fixed & recurring deposits' },
+  { id: 'market', label: 'Mutual funds & stocks' }, { id: 'retire', label: 'PF, PPF & NPS' },
+  { id: 'gold', label: 'Gold & jewellery' }, { id: 'property', label: 'Property & land' },
+  { id: 'vehicle', label: 'Vehicle' }, { id: 'insurance', label: 'Insurance cash value' }, { id: 'other', label: 'Other' },
+];
+const NW_LIAB_CATS = [
+  { id: 'card', label: 'Credit card' }, { id: 'home', label: 'Home loan' }, { id: 'vehicle', label: 'Vehicle loan' },
+  { id: 'personal', label: 'Personal loan' }, { id: 'gold', label: 'Gold loan' }, { id: 'family', label: 'Borrowed from family or friends' },
+  { id: 'loan', label: 'Loan in Land Ledger' }, { id: 'other', label: 'Other' },
+];
+const nwCatLabel = (kind, id) => ((kind === 'asset' ? NW_ASSET_CATS : NW_LIAB_CATS).find(c => c.id === id) || { label: 'Other' }).label;
+const blankNetworth = () => ({ goldRate: '', includePledgedGold: true, assets: [], liabilities: [], snapshots: [] });
+function normNetworth(n) {
+  const b = blankNetworth(); n = n && typeof n === 'object' ? n : {};
+  const items = arr => (Array.isArray(arr) ? arr : []).map(x => ({ id: x.id || uid(), name: x.name || '', category: x.category || 'other', value: num(x.value), note: x.note || '' }));
+  const { landValue, includeLand, ...rest } = n;
+  return {
+    ...b, ...rest,
+    includePledgedGold: n.includePledgedGold !== false,
+    assets: items(n.assets), liabilities: items(n.liabilities),
+    snapshots: (Array.isArray(n.snapshots) ? n.snapshots : []).map(x => ({ id: x.id || uid(), date: x.date || '', assets: num(x.assets), liabilities: num(x.liabilities), net: num(x.net) })),
+  };
+}
+
+function computeNetWorth(data) {
+  const nw = data.networth;
+  const autoA = [], autoL = [], perProp = [];
+  const many = data.properties.length > 1;
+  data.properties.forEach((pr, idx) => {
+    const s = summarize(viewOf(pr, data));
+    const P = pr.property, name = propLabel(pr, idx);
+    const landVal = num(P.marketValue) || s.totalCost;
+    perProp.push({ id: pr.id, name, landVal, s, included: P.includeInNetWorth });
+    if (P.includeInNetWorth && landVal > 0) {
+      autoA.push({ id: 'auto-land-' + pr.id, name, category: 'property', value: landVal, note: num(P.marketValue) ? 'Current market value' : 'At purchase price', auto: true });
+      if (s.balance > 0) autoL.push({ id: 'auto-seller-' + pr.id, name: 'Balance due to seller' + (many ? ': ' + name : ''), category: 'other', value: s.balance, note: 'Land price not yet paid', auto: true });
+    }
+    s.loanStats.forEach(x => {
+      const g = x.loan.gold || {}, label = loanName(x.loan) + (many ? ' (' + name + ')' : '');
+      if (nw.includePledgedGold && x.loan.type === 'gold' && num(g.weight) > 0 && x.outstanding > 0) {
+        const rate = num(nw.goldRate) || num(g.ratePerGram);
+        if (rate > 0) autoA.push({ id: 'auto-gold-' + x.loan.id, name: 'Gold pledged for ' + label, category: 'gold', value: r2(num(g.weight) * rate), note: num(g.weight) + ' g ' + (g.purity || '') + ' at ' + inr(rate) + '/g', auto: true });
+      }
+      if (x.outstanding > 0) autoL.push({ id: 'auto-loan-' + x.loan.id, name: label, category: x.loan.type === 'gold' ? 'gold' : x.loan.type === 'personal' ? 'personal' : 'loan', value: x.outstanding, note: x.loan.lender || '', auto: true });
+    });
+  });
+  const assets = [...autoA, ...nw.assets], liabilities = [...autoL, ...nw.liabilities];
+  const totA = assets.reduce((a, x) => a + num(x.value), 0), totL = liabilities.reduce((a, x) => a + num(x.value), 0);
+  const snaps = [...nw.snapshots].sort((a, b) => (a.date > b.date ? 1 : -1));
+  const last = snaps.filter(x => x.date < todayISO()).pop() || null;
+  return { assets, liabilities, totA, totL, net: totA - totL, snaps, last, perProp };
+}
+
+function NWItemForm({ kind, item, onSave, onClose }) {
+  const cats = kind === 'asset' ? NW_ASSET_CATS : NW_LIAB_CATS.filter(c => c.id !== 'loan');
+  const [f, setF] = useState(item || { name: '', category: cats[0].id, value: '', note: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const save = () => {
+    if (!f.name.trim()) return setErr('Give it a name, for example "SBI savings".');
+    if (!(num(f.value) >= 0) || f.value === '') return setErr('Enter the current value.');
+    onSave({ ...f, id: f.id || uid(), name: f.name.trim(), value: num(f.value) });
+  };
+  const noun = kind === 'asset' ? 'asset' : 'liability';
+  return html`<${Modal} title=${(item ? 'Edit ' : 'Add ') + noun} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : 'Add ' + noun}</button>`}>
+    <div className="fields">
+      <${Field} label="Name" wide><input value=${f.name} onChange=${set('name')} autoFocus placeholder=${kind === 'asset' ? 'e.g. SBI savings, Axis bluechip fund' : 'e.g. HDFC credit card'} /><//>
+      <${Field} label="Category"><select value=${f.category} onChange=${set('category')}>${cats.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}</select><//>
+      <${Field} label=${kind === 'asset' ? 'Current value (₹)' : 'Amount owed today (₹)'}><input type="number" min="0" step="any" inputMode="decimal" value=${f.value} onChange=${set('value')} /><//>
+      <${Field} label="Note" wide><input value=${f.note} onChange=${set('note')} placeholder="Account number, where it's held" /><//>
+    </div>
+    ${kind === 'liability' && html`<p className="hint" style=${{ marginTop: '12px', fontSize: '13px' }}>Loans you track under any property are already counted. Only add other debts here.</p>`}
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function NetChart({ snaps }) {
+  const W = 640, H = 200, px = 16, top = 22, bottom = 30;
+  const vals = snaps.map(x => x.net);
+  let min = Math.min(...vals, 0), max = Math.max(...vals, 0);
+  if (max === min) max = min + 1;
+  const x = i => px + (snaps.length === 1 ? (W - 2 * px) / 2 : i * (W - 2 * px) / (snaps.length - 1));
+  const y = v => top + (max - v) / (max - min) * (H - top - bottom);
+  const pts = snaps.map((p, i) => x(i) + ',' + y(p.net)).join(' ');
+  const lastP = snaps[snaps.length - 1];
+  return html`<svg viewBox=${'0 0 ' + W + ' ' + H} className="nw-chart" role="img" aria-label=${'Net worth over ' + snaps.length + ' saved dates, latest ' + inr(lastP.net)}>
+    <line x1=${px} x2=${W - px} y1=${y(0)} y2=${y(0)} className="nw-zero" />
+    ${snaps.length > 1 && html`<polyline points=${pts} className="nw-line" />`}
+    ${snaps.map((p, i) => html`<circle key=${p.id} cx=${x(i)} cy=${y(p.net)} r="4" className="nw-dot"><title>${fdate(p.date) + ': ' + inr(p.net)}</title></circle>`)}
+    <text x=${px} y=${H - 8} className="nw-label">${fdate(snaps[0].date)}</text>
+    ${snaps.length > 1 && html`<text x=${W - px} y=${H - 8} textAnchor="end" className="nw-label">${fdate(lastP.date)}</text>`}
+    <text x=${Math.min(W - px, Math.max(px, x(snaps.length - 1)))} y=${Math.max(14, y(lastP.net) - 10)} textAnchor=${snaps.length > 1 ? 'end' : 'middle'} className="nw-label strong">${inr(lastP.net)}</text>
+  </svg>`;
+}
+
+function NetWorth({ data, nw, updateNw, on }) {
+  const N = data.networth;
+  const setN = k => e => updateNw(n => ({ ...n, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const hasGoldLoans = data.properties.some(pr => pr.loans.some(l => l.type === 'gold' && num(l.gold && l.gold.weight) > 0));
+  const change = nw.last ? nw.net - nw.last.net : null;
+  const list = (kind, items, total) => html`<section className="box">
+    <div className="toolbar" style=${{ marginBottom: '10px' }}>
+      <h2 style=${{ margin: 0 }}>${kind === 'asset' ? 'What you own' : 'What you owe'}</h2>
+      <button className="btn small" onClick=${() => on.add(kind)}>${kind === 'asset' ? 'Add asset' : 'Add liability'}</button>
+    </div>
+    ${items.length === 0
+      ? html`<p className="hint">${kind === 'asset' ? 'Add bank balances, deposits, investments, PF, gold and anything else you own.' : 'Nothing owed. Add credit cards or any debt not tracked in the Loans tab.'}</p>`
+      : html`<ul className="recent nw-list">${items.map(x => html`<li key=${x.id}>
+          <div style=${{ minWidth: 0 }}>
+            <div>${x.name}${x.auto && html` <span className="pill plain">From Land Ledger</span>`}</div>
+            <div className="meta">${[nwCatLabel(kind, x.category), x.note].filter(Boolean).join(', ')}</div>
+          </div>
+          <div className="nw-right">
+            <strong>${inr(x.value)}</strong>
+            ${!x.auto && html`<div className="row-actions"><button className="btn quiet small" onClick=${() => on.edit(kind, x)}>Edit</button><button className="btn quiet small danger" onClick=${() => on.del(kind, x)}>Delete</button></div>`}
+          </div></li>`)}</ul>
+        <div className="card-total" style=${{ borderTop: '2px solid var(--line)', marginTop: '6px', paddingTop: '10px' }}><span>Total</span><strong>${inr(total)}</strong></div>`}
+  </section>`;
+
+  return html`<div>
+    <section className="nw-head">
+      <div>
+        <p className="lede" style=${{ color: 'var(--muted)', fontWeight: 600 }}>Your net worth today</p>
+        <p className=${'nw-big' + (nw.net < 0 ? ' neg' : '')}>${nw.net < 0 ? '−' : ''}${inr(Math.abs(nw.net))}</p>
+        <p className="hint">${inr(nw.totA)} owned minus ${inr(nw.totL)} owed.${change !== null ? html` <span className=${change >= 0 ? 'up' : 'down'}>${change >= 0 ? '▲ ' : '▼ '}${inr(Math.abs(change))}</span> since ${fdate(nw.last.date)}.` : ''}</p>
+      </div>
+      <button className="btn primary" onClick=${on.snapshot}>Save today's net worth</button>
+    </section>
+    ${nw.totA + nw.totL > 0 && html`<div className="split nw-split" role="img" aria-label=${'Owed is ' + Math.round(nw.totL / Math.max(1, nw.totA) * 100) + ' percent of what you own'}>
+      <i className="s-paid" style=${{ width: Math.max(0, Math.min(100, (nw.totA - nw.totL) / Math.max(nw.totA, nw.totL) * 100)) + '%' }} />
+      <i className="s-loan" style=${{ width: Math.min(100, Math.min(nw.totL, nw.totA) / Math.max(nw.totA, nw.totL) * 100) + '%' }} />
+    </div>`}
+
+    <div className="cols nw-cols">
+      <div>${list('asset', nw.assets, nw.totA)}</div>
+      <div>${list('liability', nw.liabilities, nw.totL)}</div>
+    </div>
+
+    <section className="box" style=${{ marginTop: '20px' }}>
+      <h2>Linked from Land Ledger</h2>
+      <div className="fields">
+        ${nw.perProp.map(x => html`<div key=${x.id} className="nw-prop">
+          <label className="checkline"><input type="checkbox" className="check" checked=${x.included} onChange=${e => on.setProp(x.id, 'includeInNetWorth', e.target.checked)} />
+            <span><strong>${x.name}</strong>: count the land as an asset, with any balance due to the seller as a debt</span></label>
+          ${x.included && html`<${Field} label="Current market value (₹)" help=${'Leave blank to use the purchase price, ' + inr(x.s.totalCost) + '.'}>
+            <input type="number" min="0" step="any" value=${data.properties.find(p => p.id === x.id).property.marketValue} onChange=${e => on.setProp(x.id, 'marketValue', e.target.value)} placeholder=${x.s.totalCost ? String(x.s.totalCost) : ''} /><//>`}
+        </div>`)}
+        ${hasGoldLoans && html`
+          <label className="checkline"><input type="checkbox" className="check" checked=${N.includePledgedGold} onChange=${setN('includePledgedGold')} />
+            Count gold pledged in gold loans as an asset. Turn this off if you've already added it under Gold & jewellery.</label>
+          ${N.includePledgedGold && html`<${Field} label="Today's gold rate per gram (₹)" help=${html`Leave blank to use the rate at pledge. <a href="https://ibjarates.com" target="_blank" rel="noopener noreferrer">Check today's IBJA rate</a>`}><input type="number" min="0" step="any" value=${N.goldRate} onChange=${setN('goldRate')} /><//>`}`}
+      </div>
+      <p className="hint" style=${{ marginTop: '12px', fontSize: '13px' }}>Every loan in every property is counted automatically at its current outstanding amount.</p>
+    </section>
+
+    <section className="box" style=${{ marginTop: '20px' }}>
+      <h2>Net worth over time</h2>
+      ${nw.snaps.length === 0
+        ? html`<p className="hint">Tap "Save today's net worth" every month or so. Each save adds a point here, so you can see how it changes.</p>`
+        : html`
+          <div className="table-wrap" style=${{ padding: '8px', marginBottom: '14px', boxShadow: 'none' }}><${NetChart} snaps=${nw.snaps} /></div>
+          <ul className="recent">${[...nw.snaps].reverse().map(x => html`<li key=${x.id}>
+            <div><div><strong>${inr(x.net)}</strong></div><div className="meta">${fdate(x.date)}: ${inr(x.assets)} owned, ${inr(x.liabilities)} owed</div></div>
+            <button className="btn quiet small danger" onClick=${() => on.delSnap(x)}>Delete</button></li>`)}</ul>`}
+    </section>
+  </div>`;
+}
+
+/* ---------- files ---------- */
+const downloadsReady = (window.claude && window.claude.use) ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+
+async function offerFile(filename, data, mime) {
+  const dl = await downloadsReady;
+  if (dl) {
+    try { await dl.save({ filename, data }); return 'saved'; }
+    catch (e) {
+      if (e && e.code === 'declined') return 'declined';
+      if (e && e.code === 'rate_limited') throw new Error('A save prompt is already open. Finish that one first.');
+      if (!e || !['unavailable', 'not_granted', 'capability_disabled', 'capability_removed'].includes(e.code))
+        throw new Error((e && e.message) || 'The file could not be saved.');
+    }
+  }
+  const blob = new Blob([data], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return 'saved';
+}
+
+const slug = s => (s || 'land').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'land';
+const serial = iso => {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y) return iso;
+  return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
+};
+
+function formatSheet(ws, { money = [], dates = [], widths = [] }) {
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell || cell.t !== 'n') continue;
+      if (money.includes(C)) cell.z = '#,##0.00';
+      if (dates.includes(C)) cell.z = 'dd-mmm-yyyy';
+    }
+  }
+  ws['!cols'] = widths.map(w => ({ wch: w }));
+}
+
+function addPropertySheets(wb, data, s, sheetName, pfx) {
+  const P = data.property;
+
+  const summary = [
+    ['Land purchase summary'],
+    ['Generated on', fdate(todayISO())],
+    [],
+    ['Property', P.name], ['Location', P.location], ['Survey number', P.surveyNo],
+    ['Area', P.area ? P.area + ' ' + P.areaUnit : ''], ['Seller', P.seller], ['Agreement date', P.agreementDate ? fdate(P.agreementDate) : ''],
+    [],
+    ['Agreed land price (₹)', s.totalCost],
+    ['Paid toward land price (₹)', s.towardPrice],
+    ['   Paid by you (₹)', s.towardDirect],
+    ['   Paid by loans to the seller (₹)', s.loanToSeller],
+    ['Balance due to seller (₹)', s.balance],
+    ['   Planned payments toward it (₹)', s.plannedToward],
+    ['   Not yet planned (₹)', s.unplannedRemaining],
+    ['Additional costs paid (₹)', s.additional],
+    ['Planned additional costs (₹)', s.plannedExtra],
+    [],
+    ['Loans'],
+    ['Total borrowed (₹)', s.borrowed],
+    ['   Paid directly to the seller (₹)', s.loanToSeller],
+    ['   Received in your account (₹)', s.loanToSelf],
+    ['Loan payments made', s.emiPaidCount + ' of ' + s.emiCount],
+    ['Paid in EMIs and dues (₹)', s.emiPaid],
+    ['   Principal repaid (₹)', s.principalPaid],
+    ['   Interest paid (₹)', s.interestPaid],
+    ['Part payments (₹)', s.prepaid],
+    ['Pre-payment charges (₹)', s.charges],
+    ['Total outstanding (₹)', s.loanOutstanding],
+    ['Total interest over all loans (₹)', s.scheduledInterest],
+    [],
+    ['Your own money spent (₹)', s.pocket],
+    ['Projected total cost incl. interest (₹)', s.projected],
+    [],
+    ['Spending by category', 'Total (₹)', 'Toward land price (₹)'],
+    ...CATS.map(c => [c.label, s.byCat[c.id], s.byCatToward[c.id]]),
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(summary);
+  formatSheet(ws1, { money: [1, 2], widths: [40, 22, 24] });
+  XLSX.utils.book_append_sheet(wb, ws1, sheetName(pfx + 'Summary'));
+
+  // one row per loan
+  const loanHead = ['Loan', 'Type', 'Lender', 'Loan / account no.', 'Amount (₹)', 'Interest % p.a.', 'Repayment', 'Tenure (months)', 'Loan date', 'First / due date',
+    'Money went to', 'Next due (₹)', 'Next due date', 'Paid so far (₹)', 'Interest paid (₹)', 'Part payments (₹)', 'Outstanding (₹)', 'Total interest (₹)', 'Ends',
+    'Gold weight (g)', 'Purity', 'Gold rate per g (₹)', 'Gold value (₹)', 'Loan to value %', 'Pledge / receipt no.',
+    'Rate type', 'Current rate %', 'Pre-payment charge %', 'Pre-payment charges paid (₹)'];
+  const loanRows = [loanHead];
+  s.loanStats.forEach(x => {
+    const l = x.loan, g = l.gold || {}, isGold = l.type === 'gold';
+    loanRows.push([loanName(l), loanTypeById[l.type].label, l.lender, l.accountNo, num(l.principal), num(l.rate), repayById[l.repayment].short,
+      Math.round(num(l.tenureMonths)) || '', serial(l.loanDate), serial(l.startDate),
+      l.use === 'seller' ? 'Seller (counts toward land price)' : 'My account',
+      x.next ? num(x.next.amount) : 0, x.next ? serial(x.next.dueDate) : '', x.paidAmt, x.interestPaid, x.prepaid, x.outstanding, x.scheduledInterest, serial(x.end),
+      isGold ? num(g.weight) || '' : '', isGold ? g.purity : '', isGold ? num(g.ratePerGram) || '' : '', isGold && x.goldValue ? x.goldValue : '',
+      isGold && x.goldValue ? Math.round(num(l.principal) / x.goldValue * 1000) / 10 : '', isGold ? g.pledgeNo : '',
+      l.rateType === 'floating' ? 'Floating' : 'Fixed', x.currentRate, l.rateType === 'fixed' && num(l.prepayChargePct) ? num(l.prepayChargePct) + (l.chargeGst ? ' + GST' : '') : '', x.charges]);
+  });
+  if (s.loanStats.length > 1) loanRows.push([], ['Total', '', '', '', s.borrowed, '', '', '', '', '', '', '', '', s.emiPaid, s.interestPaid, s.prepaid, s.loanOutstanding, s.scheduledInterest]);
+  const ws2 = XLSX.utils.aoa_to_sheet(loanRows);
+  formatSheet(ws2, { money: [4, 11, 13, 14, 15, 16, 17, 21, 22, 28], dates: [8, 9, 12, 18], widths: [20, 14, 20, 18, 14, 10, 26, 10, 13, 13, 26, 13, 13, 14, 14, 14, 14, 14, 13, 10, 8, 12, 14, 10, 18, 10, 10, 14, 16] });
+  XLSX.utils.book_append_sheet(wb, ws2, sheetName(pfx + 'Loans'));
+
+  const pays = [...data.payments].sort((a, b) => (a.date > b.date ? 1 : -1));
+  const payRows = [['Date', 'Category', 'Description', 'Paid to', 'Mode', 'Reference', 'Amount (₹)', 'Counts toward land price', 'Status']];
+  pays.forEach(p => payRows.push([serial(p.date), catById[p.category].label, p.description, p.paidTo, p.mode, p.reference, num(p.amount), p.towardPrice ? 'Yes' : 'No', p.status === 'planned' ? (p.date && p.date < todayISO() ? 'To pay (overdue)' : 'To pay') : 'Paid']));
+  payRows.push([], ['', '', '', '', '', 'Total paid', s.totalPayments, '', ''], ['', '', '', '', '', 'Total to pay', s.plannedTotal, '', '']);
+  const ws3 = XLSX.utils.aoa_to_sheet(payRows);
+  formatSheet(ws3, { money: [6], dates: [0], widths: [13, 26, 34, 22, 15, 18, 16, 22, 16] });
+  XLSX.utils.book_append_sheet(wb, ws3, sheetName(pfx + 'Payments'));
+
+  // a schedule sheet for every loan
+  s.loanStats.forEach(x => {
+    const l = x.loan;
+    const rows = [[loanName(l) + (l.lender ? ', ' + l.lender : '')], [repayById[l.repayment].short + ', ' + num(l.rate) + '% p.a.'], [],
+      ['No.', 'Due date', 'Amount (₹)', 'Principal (₹)', 'Interest (₹)', 'Balance after (₹)', 'Status', 'Paid on', 'Note', 'Rate %', 'Opening balance (₹)', 'EMI change']];
+    [...l.emis].sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1)).forEach(e =>
+      rows.push([e.no, serial(e.dueDate), num(e.amount), num(e.principal), num(e.interest), num(e.balance), e.status === 'paid' ? 'Paid' : 'Pending', serial(e.paidDate), e.note, e.rate === '' || e.rate === undefined ? '' : num(e.rate),
+        e.open === '' || e.open === undefined ? r2(num(e.balance) + num(e.principal)) : num(e.open),
+        e.calc && e.calc.why === 'rate' ? 'Rate ' + e.calc.rate + '%: EMI recalculated over ' + e.calc.months + ' months'
+          : e.calc && e.calc.why === 'raise' ? 'Rate ' + e.calc.rate + '%: EMI raised to cover interest'
+          : e.calc && e.calc.why === 'rate-keep' ? 'Rate ' + e.calc.rate + '%: EMI kept, tenure changed'
+          : e.calc && e.calc.why === 'prepay' ? 'Part payment: EMI recalculated over ' + e.calc.months + ' months' : '']));
+    const tot = k => l.emis.reduce((a, e) => a + num(e[k]), 0);
+    rows.push([], ['Total', '', tot('amount'), tot('principal'), tot('interest'), '', x.paidCount + ' paid', '', '']);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    formatSheet(ws, { money: [2, 3, 4, 5, 10], dates: [1, 7], widths: [8, 13, 14, 14, 14, 17, 10, 13, 28, 8, 17, 40] });
+    XLSX.utils.book_append_sheet(wb, ws, sheetName(pfx + loanName(l)));
+  });
+
+  const pre = data.loans.flatMap(l => l.prepayments.map(p => ({ ...p, loan: l }))).sort((a, b) => (a.date > b.date ? 1 : -1));
+  if (pre.length) {
+    const preRows = [['Date', 'Loan', 'Amount (₹)', 'Used to', 'Note', 'Charge (₹)']];
+    pre.forEach(p => preRows.push([serial(p.date), loanName(p.loan), num(p.amount), p.loan.repayment !== 'emi' ? 'Reduce principal' : p.mode === 'emi' ? 'Reduce EMI' : 'Reduce tenure', p.note, num(p.charge)]));
+    preRows.push([], ['Total', '', s.prepaid, '', '', s.charges]);
+    const ws4 = XLSX.utils.aoa_to_sheet(preRows);
+    formatSheet(ws4, { money: [2, 5], dates: [0], widths: [13, 22, 16, 16, 30, 12] });
+    XLSX.utils.book_append_sheet(wb, ws4, sheetName(pfx + 'Part payments'));
+  }
+
+  const rc = data.loans.filter(l => l.rateType === 'floating' && l.rateChanges.length)
+    .flatMap(l => [{ date: l.loanDate || l.startDate, rate: num(l.rate), adjust: '', note: 'Starting rate', loan: l }, ...l.rateChanges.map(x => ({ ...x, loan: l }))]);
+  if (rc.length) {
+    const rcRows = [['Loan', 'From date', 'Rate %', 'What the bank changed', 'Note']];
+    rc.forEach(x => rcRows.push([loanName(x.loan), serial(x.date), num(x.rate), x.adjust === 'emi' ? 'EMI' : x.adjust === 'tenure' ? 'Tenure (EMI kept)' : '', x.note]));
+    const ws6 = XLSX.utils.aoa_to_sheet(rcRows);
+    formatSheet(ws6, { dates: [1], widths: [22, 13, 9, 22, 30] });
+    XLSX.utils.book_append_sheet(wb, ws6, sheetName(pfx + 'Rate changes'));
+  }
+
+}
+
+function buildWorkbook(data) {
+  const wb = XLSX.utils.book_new();
+  const usedNames = new Set();
+  const sheetName = base => {
+    let n = String(base).replace(/[\\\/\?\*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 28) || 'Sheet';
+    let k = n, i = 2;
+    while (usedNames.has(k.toLowerCase())) k = n.slice(0, 25) + ' ' + i++;
+    usedNames.add(k.toLowerCase()); return k;
+  };
+  const many = data.properties.length > 1;
+  const views = data.properties.map((pr, i) => { const v = viewOf(pr, data); return { pr, v, s: summarize(v), name: propLabel(pr, i) }; });
+
+  if (many) {
+    const head = ['Property', 'Location', 'Survey no.', 'Land price (₹)', 'Paid toward price (₹)', 'Balance due (₹)', 'Additional costs paid (₹)', 'Payments to make (₹)', 'Loans outstanding (₹)', 'Market value (₹)', 'Own money spent (₹)'];
+    const rows = [['All properties, as of ' + fdate(todayISO())], [], head];
+    views.forEach(x => rows.push([x.name, x.v.property.location, x.v.property.surveyNo, x.s.totalCost, x.s.towardPrice, x.s.balance, x.s.additional, x.s.plannedTotal, x.s.loanOutstanding, num(x.v.property.marketValue) || x.s.totalCost, x.s.pocket]));
+    const t = k => views.reduce((a, x) => a + num(x.s[k]), 0);
+    rows.push([], ['Total', '', '', t('totalCost'), t('towardPrice'), t('balance'), t('additional'), t('plannedTotal'), t('loanOutstanding'), views.reduce((a, x) => a + (num(x.v.property.marketValue) || x.s.totalCost), 0), t('pocket')]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    formatSheet(ws, { money: [3, 4, 5, 6, 7, 8, 9, 10], widths: [24, 22, 12, 15, 18, 15, 18, 18, 18, 15, 16] });
+    XLSX.utils.book_append_sheet(wb, ws, sheetName('All properties'));
+  }
+  views.forEach(x => addPropertySheets(wb, x.v, x.s, sheetName, many ? x.name.slice(0, 12).trim() + ' - ' : ''));
+
+  const nw = computeNetWorth(data);
+  const nwRows = [['Net worth as of ' + fdate(todayISO())], [], ['What you own', 'Category', 'Value (₹)', 'Note', 'Source']];
+  nw.assets.forEach(x => nwRows.push([x.name, nwCatLabel('asset', x.category), num(x.value), x.note, x.auto ? 'Land Ledger' : 'Added by you']));
+  nwRows.push(['Total owned', '', nw.totA, '', ''], [], ['What you owe', 'Category', 'Amount (₹)', 'Note', 'Source']);
+  nw.liabilities.forEach(x => nwRows.push([x.name, nwCatLabel('liability', x.category), num(x.value), x.note, x.auto ? 'Land Ledger' : 'Added by you']));
+  nwRows.push(['Total owed', '', nw.totL, '', ''], [], ['Net worth', '', nw.net, '', '']);
+  if (nw.snaps.length) {
+    nwRows.push([], ['History'], ['Date', 'Owned (₹)', 'Owed (₹)', 'Net worth (₹)']);
+    nw.snaps.forEach(x => nwRows.push([fdate(x.date), x.assets, x.liabilities, x.net]));
+  }
+  const ws5 = XLSX.utils.aoa_to_sheet(nwRows);
+  formatSheet(ws5, { money: [1, 2, 3], widths: [34, 26, 16, 30, 14] });
+  XLSX.utils.book_append_sheet(wb, ws5, sheetName('Net worth'));
+
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+}
+
+/* ---------- Google Drive sync (optional) ----------
+   The client ID comes from the GOOGLE_CLIENT_ID repository variable, injected
+   by .github/workflows/deploy.yml (see README). It is a public identifier, not a secret. */
+const GOOGLE_CLIENT_ID = (() => {
+  const v = '101358779977-o88ha91nqmtmmsjhj3gurah0fp32fiq4.apps.googleusercontent.com'; // replaced at deploy time by the GitHub Actions workflow
+  return /^__[A-Z_]+__$/.test(v) ? '' : v.trim();
+})();
+const DRIVE_FILE_NAME = 'land-ledger.json';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const LINK_KEY = STORE_KEY + ':drive';
+
+const Drive = {
+  ready: null, token: null, expires: 0,
+  load() {
+    if (!GOOGLE_CLIENT_ID) return Promise.resolve(false);
+    if (this.ready) return this.ready;
+    this.ready = new Promise(res => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+      s.onload = () => res(!!(window.google && google.accounts && google.accounts.oauth2));
+      s.onerror = () => res(false);
+      document.head.appendChild(s);
+      setTimeout(() => res(false), 10000);
+    });
+    return this.ready;
+  },
+  hasToken() { return !!this.token && Date.now() < this.expires - 60000; },
+  signIn() {
+    return new Promise((resolve, reject) => {
+      if (this.hasToken()) return resolve(this.token);
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE,
+        callback: r => {
+          if (r.error) return reject(new Error('Google sign-in failed (' + r.error + ').'));
+          this.token = r.access_token; this.expires = Date.now() + (r.expires_in || 3600) * 1000; resolve(this.token);
+        },
+        error_callback: e => reject(new Error(e && e.type === 'popup_closed' ? 'The Google sign-in window was closed.' : 'Google sign-in was blocked. Allow pop-ups for this site and try again.')),
+      });
+      client.requestAccessToken({ prompt: '' });
+    });
+  },
+  signOut() { if (this.token && window.google) google.accounts.oauth2.revoke(this.token, () => {}); this.token = null; this.expires = 0; },
+  async api(url, opts = {}) {
+    const expired = () => { const e = new Error('Drive session expired. Tap Sync with Drive to reconnect.'); e.code = 'auth'; return e; };
+    if (!this.hasToken()) throw expired();
+    const r = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + this.token } });
+    if (r.status === 401) { this.token = null; throw expired(); }
+    if (!r.ok) { const e = new Error('Google Drive returned an error (' + r.status + ').'); e.status = r.status; throw e; }
+    return r;
+  },
+  async find() {
+    const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+    const j = await (await this.api(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&orderBy=modifiedTime desc&fields=files(id,modifiedTime)`)).json();
+    return (j.files && j.files[0]) || null;
+  },
+  async meta(id) { return (await this.api(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,modifiedTime,trashed`)).json(); },
+  async read(id) { return (await this.api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`)).json(); },
+  async create(data) {
+    const b = 'll' + uid();
+    const body = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name: DRIVE_FILE_NAME, mimeType: 'application/json' })}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(data, null, 2)}\r\n--${b}--`;
+    return (await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime',
+      { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body })).json();
+  },
+  async write(id, data) {
+    return (await this.api(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&fields=id,modifiedTime`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2) })).json();
+  },
+};
+
+/* ---------- app lock: passphrase + AES-GCM encryption of this device's copy ---------- */
+const CRYPTO_OK = !!(window.crypto && window.crypto.subtle && window.isSecureContext !== false);
+const LOCK_AFTER_MS = 10 * 60 * 1000;
+const te = new TextEncoder(), td = new TextDecoder();
+const b64 = buf => { const a = new Uint8Array(buf); let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', te.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function makeLock(pass) { const salt = crypto.getRandomValues(new Uint8Array(16)); return { key: await deriveKey(pass, salt), salt: b64(salt) }; }
+async function sealData(lock, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, lock.key, te.encode(JSON.stringify(obj)));
+  return { enc: 1, alg: 'AES-GCM/PBKDF2-SHA256-310k', salt: lock.salt, iv: b64(iv), ct: b64(ct) };
+}
+async function openData(pass, blob) {
+  const key = await deriveKey(pass, unb64(blob.salt));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(blob.iv) }, key, unb64(blob.ct));
+  return { data: normalize(JSON.parse(td.decode(pt))), lock: { key, salt: blob.salt } };
+}
+async function checkPass(pass) {
+  try { const blob = JSON.parse(localStorage.getItem(STORE_KEY)); if (!blob || !blob.enc) return false; await openData(pass, blob); return true; }
+  catch (e) { return false; }
+}
+
+function LockScreen({ blob, onOpen, onWipe }) {
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const open = async () => {
+    if (!pass || busy) return;
+    setBusy(true); setErr('');
+    try { const r = await openData(pass, blob); onOpen(r.data, r.lock); }
+    catch (e) { setErr('That passphrase is not correct.'); setBusy(false); }
+  };
+  return html`<div className="lock-wrap"><div className="lock box">
+    <svg viewBox="0 0 240 204" aria-hidden="true"><polygon points=${PTS} className="plot-edge" />${PLOT.map(([x, y], i) => html`<rect key=${i} className="stone" x=${x - 5} y=${y - 5} width="10" height="10" />`)}</svg>
+    <h1>Land Ledger is locked</h1>
+    <p className="hint">Enter your passphrase to open it.</p>
+    <label className="field">Passphrase
+      <input type="password" autoFocus autoComplete="current-password" value=${pass} onChange=${e => setPass(e.target.value)} onKeyDown=${e => { if (e.key === 'Enter') open(); }} />
+    </label>
+    ${err && html`<p className="err" role="alert">${err}</p>`}
+    <button className="btn primary" onClick=${open} disabled=${busy || !pass}>${busy ? 'Unlocking…' : 'Unlock'}</button>
+    ${!forgot
+      ? html`<button className="btn quiet" onClick=${() => setForgot(true)}>Forgot passphrase?</button>`
+      : html`<div className="notice conflict"><span>A forgotten passphrase can't be recovered. You can clear this device, then load your data again from Google Drive or an exported JSON file.</span>
+          <div className="btns"><button className="btn small" onClick=${() => setForgot(false)}>Cancel</button><button className="btn small danger solid" onClick=${onWipe}>Clear this device</button></div></div>`}
+  </div></div>`;
+}
+
+function LockSettings({ lock, onEnable, onDisable, onLockNow }) {
+  const [mode, setMode] = useState(null);
+  const [cur, setCur] = useState(''), [a, setA] = useState(''), [b, setB] = useState('');
+  const [err, setErr] = useState(''), [busy, setBusy] = useState(false);
+  const close = () => { setMode(null); setCur(''); setA(''); setB(''); setErr(''); };
+  const submit = async () => {
+    setErr('');
+    if (mode !== 'off') {
+      if (a.length < 6) return setErr('Use at least 6 characters.');
+      if (a !== b) return setErr("The two passphrases don't match.");
+    }
+    setBusy(true);
+    try {
+      if (mode !== 'set' && !(await checkPass(cur))) return setErr('The current passphrase is not correct.');
+      if (mode === 'off') await onDisable(); else await onEnable(a);
+      close();
+    } finally { setBusy(false); }
+  };
+  if (!CRYPTO_OK) return html`<section className="box"><h2>App lock</h2><p className="hint">App lock needs the app to be opened over https, such as from GitHub Pages.</p></section>`;
+  return html`<section className="box">
+    <h2>App lock</h2>
+    <p className="hint" style=${{ marginBottom: '14px' }}>${lock
+      ? 'On. The app locks after 10 minutes without use, and the copy saved on this device is encrypted with your passphrase.'
+      : 'Off. Anyone who opens this app on this device and browser can see your data. Set a passphrase to lock the app and encrypt the copy saved here.'}</p>
+    ${mode ? html`<div className="pw-fields">
+        ${mode !== 'set' && html`<label className="field">Current passphrase<input type="password" autoComplete="current-password" value=${cur} onChange=${e => setCur(e.target.value)} /></label>`}
+        ${mode !== 'off' && html`<label className="field">New passphrase<input type="password" autoComplete="new-password" value=${a} onChange=${e => setA(e.target.value)} /></label>`}
+        ${mode !== 'off' && html`<label className="field">Type it again<input type="password" autoComplete="new-password" value=${b} onChange=${e => setB(e.target.value)} /></label>`}
+        ${mode !== 'off' && html`<span className="hint" style=${{ fontSize: '13px' }}>There is no reset. If you forget it, you'll need your Drive file or a JSON export to get your data back.</span>`}
+        ${err && html`<p className="err" role="alert">${err}</p>`}
+        <div className="actions">
+          <button className="btn" onClick=${close}>Cancel</button>
+          <button className=${'btn ' + (mode === 'off' ? 'danger' : 'primary')} onClick=${submit} disabled=${busy}>${busy ? 'Working…' : mode === 'set' ? 'Turn on app lock' : mode === 'change' ? 'Change passphrase' : 'Turn off app lock'}</button>
+        </div>
+      </div>`
+      : html`<div className="actions">${lock
+        ? html`<button className="btn primary" onClick=${onLockNow}>Lock now</button><button className="btn" onClick=${() => setMode('change')}>Change passphrase</button><button className="btn quiet danger" onClick=${() => setMode('off')}>Turn off app lock</button>`
+        : html`<button className="btn primary full" onClick=${() => setMode('set')}>Set a passphrase</button>`}</div>`}
+  </section>`;
+}
+
+function useIsMobile() {
+  const q = '(max-width: 640px)';
+  const [m, setM] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(q), f = e => setM(e.matches);
+    mq.addEventListener('change', f); return () => mq.removeEventListener('change', f);
+  }, []);
+  return m;
+}
+
+/* ---------- small components ---------- */
+const PLOT = [[34, 44], [188, 18], [224, 148], [72, 186], [16, 118]];
+const PTS = PLOT.map(p => p.join(',')).join(' ');
+function PlotFigure({ pct, surveyNo }) {
+  const top = 18, bottom = 186, y0 = bottom - pct * (bottom - top);
+  return html`
+    <figure className="plot">
+      <svg viewBox="0 0 240 204" role="img" aria-label=${Math.round(pct * 100) + ' percent of the land price paid'}>
+        <defs>
+          <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="7" className="hatch-line" />
+          </pattern>
+          <clipPath id="paidClip"><rect className="fill-rect" x="0" y=${y0} width="240" height=${204 - y0} /></clipPath>
+        </defs>
+        <polygon points=${PTS} className="plot-unpaid" />
+        <polygon points=${PTS} className="plot-paid" clipPath="url(#paidClip)" />
+        ${pct > 0.01 && pct < 0.99 && html`<line className="level" x1="0" x2="240" y1=${y0} y2=${y0} strokeDasharray="2 3" />`}
+        <polygon points=${PTS} className="plot-edge" />
+        ${PLOT.map(([x, y], i) => html`<rect key=${i} className="stone" x=${x - 4} y=${y - 4} width="8" height="8" />`)}
+        ${surveyNo && html`<text className="plot-label" x="120" y="202" textAnchor="middle">S.No. ${surveyNo}</text>`}
+      </svg>
+      <figcaption>${Math.round(pct * 100)}% of the land price paid</figcaption>
+    </figure>`;
+}
+
+function Modal({ title, onClose, children, footer }) {
+  useEffect(() => {
+    const k = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+  }, [onClose]);
+  return html`
+    <div className="overlay" onMouseDown=${e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label=${title}>
+        <h2>${title}</h2>
+        ${children}
+        <div className="foot">${footer}</div>
+      </div>
+    </div>`;
+}
+
+function Field({ label, wide, help, children }) {
+  return html`<label className=${'field' + (wide ? ' wide' : '')}>${label}${children}${help && html`<span className="help">${help}</span>`}</label>`;
+}
+
+/* ---------- forms ---------- */
+function PaymentForm({ item, onSave, onClose }) {
+  const [f, setF] = useState(item || { status: 'paid', date: todayISO(), category: 'booking', amount: '', description: '', paidTo: '', mode: 'Bank transfer', reference: '', towardPrice: true });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const planned = f.status === 'planned';
+  const save = () => {
+    if (!f.date) return setErr(planned ? 'Enter the date it is due.' : 'Enter the payment date.');
+    if (!(num(f.amount) > 0)) return setErr('Enter an amount greater than zero.');
+    onSave({ ...f, id: f.id || uid(), amount: num(f.amount) });
+  };
+  return html`<${Modal} title=${item ? (planned ? 'Edit planned payment' : 'Edit payment') : 'Add payment'} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : planned ? 'Add planned payment' : 'Add payment'}</button>`}>
+    <div className="seg" role="radiogroup" aria-label="Payment status">
+      <button type="button" role="radio" aria-checked=${!planned} className=${!planned ? 'on' : ''} onClick=${() => setF({ ...f, status: 'paid' })}>Already paid</button>
+      <button type="button" role="radio" aria-checked=${planned} className=${planned ? 'on' : ''} onClick=${() => setF({ ...f, status: 'planned' })}>To be paid later</button>
+    </div>
+    ${planned && html`<p className="hint" style=${{ fontSize: '13px', margin: '-4px 0 14px' }}>Planned payments aren't counted in what you've paid until you mark them paid.</p>`}
+    <div className="fields">
+      <${Field} label=${planned ? 'Due date' : 'Date paid'}><input type="date" value=${f.date} onChange=${set('date')} /><//>
+      <${Field} label="Amount (₹)"><input type="number" min="0" step="any" inputMode="decimal" value=${f.amount} onChange=${set('amount')} autoFocus /><//>
+      <${Field} label=${planned ? 'What is it for' : 'What was it for'} wide>
+        <select value=${f.category} onChange=${e => setF({ ...f, category: e.target.value, towardPrice: !!catById[e.target.value].price })}>${CATS.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}</select>
+      <//>
+      <label className=${'toward' + (f.towardPrice ? ' on' : '')}>
+        <input type="checkbox" className="check" checked=${!!f.towardPrice} onChange=${e => setF({ ...f, towardPrice: e.target.checked })} />
+        <span><strong>Include in land amount</strong>${f.towardPrice
+          ? 'Counts toward the land price, along with your loan amount.'
+          : 'Kept as an additional cost, on top of the land price.'}</span>
+      </label>
+      <${Field} label="Description" wide><input value=${f.description} onChange=${set('description')} placeholder=${planned ? 'e.g. Final payment at registration' : 'e.g. Second installment as per agreement'} /><//>
+      <${Field} label=${planned ? 'Pay to' : 'Paid to'}><input value=${f.paidTo} onChange=${set('paidTo')} placeholder="Person or office" /><//>
+      <${Field} label="Payment mode"><select value=${f.mode} onChange=${set('mode')}>${MODES.map(m => html`<option key=${m}>${m}</option>`)}</select><//>
+      <${Field} label="Reference" wide><input value=${f.reference} onChange=${set('reference')} placeholder=${planned ? 'Add it once you pay' : 'UTR, cheque or receipt number'} /><//>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function LoanForm({ loan, isNew, landPrice, onSave, onClose }) {
+  const [f, setF] = useState(() => ({ ...loan, gold: { ...loan.gold } }));
+  const [gen, setGen] = useState(!loan.emis.length);
+  const [err, setErr] = useState('');
+  const [help, setHelp] = useState(false);
+  const [applyAll, setApplyAll] = useState(true);
+  const set = k => e => setF(x => {
+    const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    const n = { ...x, [k]: v };
+    // bullet loans: suggest the due date from loan date + tenure
+    if (n.repayment === 'bullet' && (k === 'loanDate' || k === 'tenureMonths' || k === 'repayment') && n.loanDate && num(n.tenureMonths) > 0 && (!x.startDate || x.startDate === addMonths(x.loanDate, Math.round(num(x.tenureMonths)))))
+      n.startDate = addMonths(n.loanDate, Math.round(num(n.tenureMonths)));
+    return n;
+  });
+  const setGold = k => e => setF(x => ({ ...x, gold: { ...x.gold, [k]: e.target.value } }));
+  const changeType = e => {
+    const t = e.target.value, prev = loanTypeById[f.type];
+    setF(x => ({ ...x, type: t,
+      name: !x.name || x.name === prev.label ? loanTypeById[t].label : x.name,
+      ...(isNew ? { repayment: loanTypeById[t].repay, use: loanTypeById[t].use, rateType: loanTypeById[t].rateType } : {}) }));
+  };
+  const kind = f.repayment, r = num(f.rate) / 1200, P = num(f.principal), n = Math.round(num(f.tenureMonths));
+  const auto = kind === 'emi' ? calcEmi(P, f.rate, n) : 0;
+  const goldValue = num(f.gold.weight) * num(f.gold.ratePerGram);
+  const preview = (() => {
+    if (!(P > 0) || !(n > 0)) return null;
+    if (kind === 'emi') { const e = num(f.emi) || auto; return html`EMI: <strong>${inr(e)}</strong> a month, about ${inr(r2(e * n - P))} in total interest.`; }
+    if (kind === 'interest') return html`Interest: <strong>${inr(r2(P * r))}</strong> a month, then ${inr(P)} principal with the last payment. About ${inr(r2(P * r * n))} in total interest.`;
+    const acc = r2(P * r * n);
+    return html`Pay about <strong>${inr(P + acc)}</strong> at the end${f.startDate ? ' on ' + fdate(f.startDate) : ''}: ${inr(P)} principal plus ${inr(acc)} interest. Lenders who compound will charge a little more.`;
+  })();
+  const save = () => {
+    if (!(P > 0)) return setErr('Enter the loan amount.');
+    const out = { ...f, name: f.name.trim() || loanTypeById[f.type].label };
+    const switchAll = f.rateType === 'floating' && applyAll && f.rateChanges.some(x => x.adjust !== f.rateAdjust);
+    if (switchAll) out.rateChanges = f.rateChanges.map(x => ({ ...x, adjust: f.rateAdjust }));
+    if (gen || switchAll) {
+      try { out.emis = buildSchedule(out, [...f.emis].sort((a, b) => a.no - b.no)); } catch (e) { return setErr(e.message); }
+    }
+    onSave(out);
+  };
+  return html`<${Modal} title=${isNew ? 'Add loan' : 'Edit loan'} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save loan</button>`}>
+    <div className="fields">
+      <${Field} label="Loan type"><select value=${f.type} onChange=${changeType}>${LOAN_TYPES.map(t => html`<option key=${t.id} value=${t.id}>${t.label}</option>`)}</select><//>
+      <${Field} label="Name"><input value=${f.name} onChange=${set('name')} placeholder="e.g. SBI land loan" /><//>
+      <${Field} label="Lender"><input value=${f.lender} onChange=${set('lender')} placeholder="Bank or finance company" /><//>
+      <${Field} label="Loan / account number"><input value=${f.accountNo} onChange=${set('accountNo')} /><//>
+      ${f.use === 'seller' && num(landPrice) > 0 && html`<${Field} label="Loan % of land price" help=${'Land price ' + inr(landPrice) + '. Fills in the loan amount.'}>
+        <input type="number" min="0" max="100" step="any" placeholder="e.g. 80"
+          value=${P > 0 ? Math.round(P / num(landPrice) * 10000) / 100 : ''}
+          onChange=${e => setF(x => ({ ...x, principal: e.target.value === '' ? '' : String(r2(num(landPrice) * num(e.target.value) / 100)) }))} />
+      <//>`}
+      <${Field} label="Loan amount (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
+      <${Field} label=${f.rateType === 'floating' ? 'Starting interest rate (% a year)' : 'Interest rate (% a year)'}><input type="number" min="0" step="any" value=${f.rate} onChange=${set('rate')} /><//>
+      <div className="field wide" style=${{ margin: '4px 0 0', display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+        <span>Is the interest rate floating or fixed?</span>
+        <button type="button" className="btn quiet small" onClick=${() => setHelp(true)}>What's the difference?</button>
+      </div>
+      <label className=${'toward' + (f.rateType === 'floating' ? ' on' : '')}>
+        <input type="radio" name="rtype" className="check" checked=${f.rateType === 'floating'} onChange=${() => setF(x => ({ ...x, rateType: 'floating' }))} />
+        <span><strong>Floating</strong>The rate can change during the loan, as with most home and land loans. You can record each change. No pre-payment charges for individuals.</span>
+      </label>
+      <label className=${'toward' + (f.rateType === 'fixed' ? ' on' : '')}>
+        <input type="radio" name="rtype" className="check" checked=${f.rateType === 'fixed'} onChange=${() => setF(x => ({ ...x, rateType: 'fixed' }))} />
+        <span><strong>Fixed</strong>The rate stays the same for the whole loan. The lender may charge a fee if you pay early.</span>
+      </label>
+      ${f.rateType === 'floating' && kind === 'emi' && html`
+        <p className="field wide" style=${{ margin: '4px 0 0' }}>When the rate changes</p>
+        <label className=${'toward' + (f.rateAdjust !== 'tenure' ? ' on' : '')}>
+          <input type="radio" name="radj" className="check" checked=${f.rateAdjust !== 'tenure'} onChange=${() => setF(x => ({ ...x, rateAdjust: 'emi' }))} />
+          <span><strong>Keep my tenure, change the EMI</strong>The loan always ends on the original date. A rate rise raises the EMI; a cut lowers it.</span>
+        </label>
+        <label className=${'toward' + (f.rateAdjust === 'tenure' ? ' on' : '')}>
+          <input type="radio" name="radj" className="check" checked=${f.rateAdjust === 'tenure'} onChange=${() => setF(x => ({ ...x, rateAdjust: 'tenure' }))} />
+          <span><strong>Keep my EMI, change the tenure</strong>A rate rise adds months and interest; a cut removes months.</span>
+        </label>
+        ${f.rateChanges.some(x => x.adjust !== f.rateAdjust) && html`<label className="checkline"><input type="checkbox" className="check" checked=${applyAll} onChange=${e => setApplyAll(e.target.checked)} />
+          Also switch the ${f.rateChanges.filter(x => x.adjust !== f.rateAdjust).length} rate change(s) already recorded to this choice and rebuild the schedule.</label>`}`}
+      ${f.rateType === 'fixed' && html`
+        <${Field} label="Pre-payment charge (% of amount paid early)" help="From your sanction letter or Key Facts Statement. Leave blank if there's none.">
+          <input type="number" min="0" max="10" step="0.01" value=${f.prepayChargePct} onChange=${set('prepayChargePct')} placeholder="e.g. 3" /><//>
+        <label className="checkline" style=${{ alignSelf: 'end' }}><input type="checkbox" className="check" checked=${!!f.chargeGst} onChange=${e => setF(x => ({ ...x, chargeGst: e.target.checked }))} /> Add 18% GST on the charge</label>`}
+      <${Field} label="How it's repaid" wide><select value=${kind} onChange=${set('repayment')}>${REPAY.map(x => html`<option key=${x.id} value=${x.id}>${x.label}</option>`)}</select><//>
+      <${Field} label="Tenure (months)"><input type="number" min="1" step="1" value=${f.tenureMonths} onChange=${set('tenureMonths')} /><//>
+      <${Field} label="Loan date"><input type="date" value=${f.loanDate} onChange=${set('loanDate')} /><//>
+      <${Field} label=${repayById[kind].due}><input type="date" value=${f.startDate} onChange=${set('startDate')} /><//>
+      ${kind === 'emi' && html`<${Field} label="EMI amount (₹)" help="Leave blank to calculate it.">
+        <input type="number" min="0" step="any" value=${f.emi} onChange=${set('emi')} placeholder=${auto ? 'Calculated: ' + inr(auto) : ''} /><//>`}
+      ${preview && html`<p className="calc">${preview}</p>`}
+
+      ${f.type === 'gold' && html`
+        <p className="field wide" style=${{ margin: '6px 0 0', fontWeight: 600, color: 'var(--ink)' }}>Gold pledged</p>
+        <${Field} label="Weight (grams)"><input type="number" min="0" step="any" value=${f.gold.weight} onChange=${setGold('weight')} /><//>
+        <${Field} label="Purity"><select value=${f.gold.purity} onChange=${setGold('purity')}>${PURITY.map(p => html`<option key=${p}>${p}</option>`)}</select><//>
+        <${Field} label="Gold rate per gram at pledge (₹)" help=${html`<a href="https://ibjarates.com" target="_blank" rel="noopener noreferrer">Check today's IBJA rate</a>`}><input type="number" min="0" step="any" value=${f.gold.ratePerGram} onChange=${setGold('ratePerGram')} /><//>
+        <${Field} label="Pledge / receipt number"><input value=${f.gold.pledgeNo} onChange=${setGold('pledgeNo')} /><//>
+        ${goldValue > 0 && html`<p className="calc">Gold value about <strong>${inr(r2(goldValue))}</strong>. ${P > 0 ? html`This loan is <strong>${Math.round(P / goldValue * 1000) / 10}%</strong> of it.` : ''}</p>`}`}
+
+      <p className="field wide" style=${{ margin: '6px 0 0' }}>Where did the loan money go?</p>
+      <label className=${'toward' + (f.use === 'seller' ? ' on' : '')}>
+        <input type="radio" name="use" className="check" checked=${f.use === 'seller'} onChange=${() => setF(x => ({ ...x, use: 'seller' }))} />
+        <span><strong>Paid directly to the seller</strong>Counts toward the land price. Don't also add it under Payments.</span>
+      </label>
+      <label className=${'toward' + (f.use !== 'seller' ? ' on' : '')}>
+        <input type="radio" name="use" className="check" checked=${f.use !== 'seller'} onChange=${() => setF(x => ({ ...x, use: 'self' }))} />
+        <span><strong>Came to my account</strong>Record what you paid from it under Payments, so nothing is counted twice.</span>
+      </label>
+      <label className="checkline"><input type="checkbox" className="check" checked=${gen} onChange=${e => setGen(e.target.checked)} />
+        ${f.emis.length ? 'Rebuild the payment schedule from these terms. Payments already marked paid stay paid.' : 'Create the payment schedule from these terms.'}</label>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+    ${help && html`<${FloatingHelp} onClose=${() => setHelp(false)} />`}
+  <//>`;
+}
+
+function PrepaymentForm({ loan, onSave, onClose }) {
+  const isEmi = loan.repayment === 'emi';
+  const [f, setF] = useState({ date: todayISO(), amount: '', mode: 'tenure', note: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const old = useMemo(() => [...loan.emis].sort((a, b) => a.no - b.no), [loan]);
+  const baseRows = useMemo(() => { try { return buildSchedule(loan, old); } catch (e) { return []; } }, [loan, old]);
+  const base = baseRows.length ? scheduleStats(baseRows) : null;
+  const outAt = (() => {
+    const before = baseRows.filter(e => e.dueDate < f.date);
+    if (loan.repayment !== 'bullet' && before.length) return before[before.length - 1].balance;
+    return Math.max(0, num(loan.principal) - loan.prepayments.filter(x => x.date < f.date).reduce((a, x) => a + num(x.amount), 0));
+  })();
+  const charge = chargeFor(loan, f.amount);
+  const sim = mode => {
+    if (!(num(f.amount) > 0) || !f.date) return null;
+    try {
+      const rows = buildSchedule({ ...loan, prepayments: [...loan.prepayments, { ...f, mode, amount: num(f.amount) }] }, old);
+      const next = rows.find(e => e.status !== 'paid' && e.dueDate > f.date);
+      return { ...scheduleStats(rows), nextEmi: next ? next.amount : 0 };
+    } catch (e) { return null; }
+  };
+  const a = isEmi ? sim('emi') : null, b = sim('tenure');
+  const nx = old.find(e => e.status !== 'paid' && e.dueDate > f.date);
+  const curEmi = nx ? nx.amount : 0;
+  const monthsBetween = (x, y) => { if (!x || !y) return 0; const [y1, m1] = x.split('-').map(Number), [y2, m2] = y.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+  const saved = r => (base && r ? Math.max(0, base.interest - r.interest) : 0);
+  const save = () => {
+    if (!f.date) return setErr('Enter the date of the part payment.');
+    if (!(num(f.amount) > 0)) return setErr('Enter the amount you paid.');
+    if (num(f.amount) > outAt + 1) return setErr('That is more than the ' + inr(outAt) + ' outstanding on this date.');
+    onSave({ ...f, id: uid(), amount: num(f.amount), charge });
+  };
+  const opt = (mode, r, title) => html`<label className=${'toward' + (f.mode === mode ? ' on' : '')}>
+      <input type="radio" name="ppmode" className="check" checked=${f.mode === mode} onChange=${() => setF({ ...f, mode })} />
+      <span><strong>${title}</strong>${!r ? 'Enter the amount and date to see the effect.'
+        : mode === 'emi'
+          ? `EMI goes from ${inr(curEmi)} to ${inr(r.nextEmi)}. Loan still ends ${fdate(r.end)}. Interest saved: ${inr(saved(r))}.`
+          : `EMI stays ${inr(curEmi)}. Loan ends ${fdate(r.end)}, ${Math.max(0, monthsBetween(r.end, base ? base.end : r.end))} months earlier. Interest saved: ${inr(saved(r))}.`}</span>
+    </label>`;
+  const better = a && b ? saved(b) - saved(a) : 0;
+  return html`<${Modal} title=${'Part payment: ' + loanName(loan)} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save part payment</button>`}>
+    <div className="fields">
+      <${Field} label="Date paid"><input type="date" value=${f.date} onChange=${set('date')} /><//>
+      <${Field} label="Amount (₹)" help=${html`Outstanding on this date: ${inr(outAt)}. <button type="button" className="linkbtn" onClick=${() => setF({ ...f, amount: String(outAt) })}>Pay off the whole loan</button>`}><input type="number" min="0" step="any" inputMode="decimal" value=${f.amount} onChange=${set('amount')} autoFocus /><//>
+      ${f.amount !== '' && num(f.amount) >= outAt - 1 && outAt > 0 && html`<p className="calc">This closes the loan. Your bank's closure statement may add interest for the days since your last payment.</p>`}
+      <p className=${'calc' + (charge > 0 ? ' warn' : '')}>${loan.rateType === 'floating'
+        ? 'No pre-payment charge: this is a floating-rate loan.'
+        : charge > 0 ? html`Pre-payment charge: <strong>${inr(charge)}</strong> (${num(loan.prepayChargePct)}%${loan.chargeGst ? ' + 18% GST' : ''}). It's added to what you've spent.`
+        : 'Fixed-rate loan: your lender may charge a fee. Add the percentage under Edit loan to include it here.'}</p>
+      ${isEmi ? html`
+        <p className="field wide" style=${{ margin: 0 }}>What did you ask the bank to reduce?</p>
+        ${opt('tenure', b, 'Reduce tenure (keep the same EMI)')}
+        ${opt('emi', a, 'Reduce EMI (keep the same end date)')}
+        ${better > 1 && html`<p className="calc">Reducing tenure saves ${inr(better)} more in interest. Reducing EMI lowers your monthly outgo instead.</p>`}`
+      : html`<p className="calc">${b
+          ? html`This reduces the principal${loan.repayment === 'interest' ? ', so every monthly interest payment after it is smaller' : ' you repay at the end, and less interest builds up'}. Interest saved: <strong>${inr(saved(b))}</strong>.`
+          : 'Enter the amount and date to see how much interest it saves.'}</p>`}
+      <${Field} label="Note" wide><input value=${f.note} onChange=${set('note')} placeholder="e.g. Bonus, bank reference number" /><//>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function FloatingHelp({ onClose }) {
+  return html`<${Modal} title="How floating rates work here" onClose=${onClose}
+      footer=${html`<button className="btn primary" onClick=${onClose}>Got it</button>`}>
+    <ol className="help-steps">
+      <li><strong>Why the rate moves.</strong> A floating rate is linked to a benchmark, usually the RBI repo rate. When the benchmark changes, your bank resets your rate, for example from 7.5% to 7.8%.</li>
+      <li><strong>When your bank tells you.</strong> Open the loan, tap <em>Rate changed</em>, and enter the date the new rate applies from and the new rate.</li>
+      <li><strong>Keep your end date.</strong> By default the app keeps your tenure fixed and changes the EMI instead. Banks often extend the tenure unless you ask them not to, so tell your bank you want the EMI revised, and set the same choice on the loan.</li>
+      <li><strong>The schedule updates itself.</strong> Everything from that date is recalculated at the new rate. EMIs you've already marked paid stay exactly as they were.</li>
+      <li><strong>Small differences are normal.</strong> Banks round differently. If an EMI is off by a few rupees, edit that row to match your statement.</li>
+    </ol>
+    <p className="calc" style=${{ marginTop: '14px' }}><strong>Pre-payment charges.</strong> Under RBI rules, banks and NBFCs can't charge pre-payment or foreclosure fees on floating-rate loans taken by individuals for non-business purposes. Fixed-rate loans can carry a charge set by the lender, so check your sanction letter or Key Facts Statement for the exact percentage.</p>
+  <//>`;
+}
+
+function RateChangeForm({ loan, onSave, onClose, onHelp }) {
+  const [f, setF] = useState({ date: todayISO(), rate: '', adjust: loan.rateAdjust || 'emi', note: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const isEmi = loan.repayment === 'emi';
+  const old = useMemo(() => [...loan.emis].sort((a, b) => a.no - b.no), [loan]);
+  const base = useMemo(() => { try { return scheduleStats(buildSchedule(loan, old)); } catch (e) { return null; } }, [loan, old]);
+  const cur = rateAt(loan, f.date || todayISO());
+  const sim = adjust => {
+    if (f.rate === '' || !f.date) return null;
+    try {
+      const rows = buildSchedule({ ...loan, rateChanges: [...loan.rateChanges, { ...f, adjust, rate: num(f.rate) }] }, old);
+      const nx = rows.find(e => e.status !== 'paid' && e.dueDate > f.date);
+      return { ...scheduleStats(rows), nextEmi: nx ? nx.amount : 0 };
+    } catch (e) { return null; }
+  };
+  const nxOld = old.find(e => e.status !== 'paid' && e.dueDate > f.date);
+  const curEmi = nxOld ? nxOld.amount : 0;
+  const months = (x, y) => { if (!x || !y) return 0; const [a1, b1] = x.split('-').map(Number), [a2, b2] = y.split('-').map(Number); return (a2 - a1) * 12 + (b2 - b1); };
+  const diff = r => (base && r ? r.interest - base.interest : 0);
+  const diffText = r => { const d = diff(r); return Math.abs(d) < 1 ? 'Total interest about the same.' : d > 0 ? `Total interest goes up by ${inr(d)}.` : `Total interest goes down by ${inr(-d)}.`; };
+  const a = isEmi ? sim('tenure') : sim('emi'), b = isEmi ? sim('emi') : null;
+  const save = () => {
+    if (!f.date) return setErr('Enter the date the new rate applies from.');
+    if (f.rate === '' || num(f.rate) < 0 || num(f.rate) > 40) return setErr('Enter the new interest rate, for example 7.8.');
+    onSave({ ...f, id: uid(), rate: num(f.rate) });
+  };
+  const opt = (adjust, r, title) => html`<label className=${'toward' + (f.adjust === adjust ? ' on' : '')}>
+    <input type="radio" name="adjust" className="check" checked=${f.adjust === adjust} onChange=${() => setF({ ...f, adjust })} />
+    <span><strong>${title}</strong>${!r ? 'Enter the new rate to see the effect.'
+      : adjust === 'tenure'
+        ? (r.nextEmi > curEmi + 1 ? `The old EMI can't cover the new interest, so it rises to ${inr(r.nextEmi)}. ` : `EMI stays ${inr(curEmi)}. `) + `Loan ends ${fdate(r.end)}${base ? ' (' + (months(base.end, r.end) >= 0 ? months(base.end, r.end) + ' months later' : -months(base.end, r.end) + ' months earlier') + ')' : ''}. ${diffText(r)}`
+        : `EMI changes from ${inr(curEmi)} to ${inr(r.nextEmi)}. Loan still ends ${fdate(r.end)}. ${diffText(r)}`}</span>
+  </label>`;
+  return html`<${Modal} title=${'Rate changed: ' + loanName(loan)} onClose=${onClose}
+      footer=${html`<button className="btn quiet" onClick=${onHelp}>How this works</button><span style=${{ flex: 1 }}></span><button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>Save new rate</button>`}>
+    <div className="fields">
+      <${Field} label="New rate applies from"><input type="date" value=${f.date} onChange=${set('date')} /><//>
+      <${Field} label="New interest rate (% a year)" help=${'Rate before this date: ' + cur + '%'}><input type="number" min="0" max="40" step="0.01" inputMode="decimal" value=${f.rate} onChange=${set('rate')} autoFocus placeholder=${String(cur)} /><//>
+      ${isEmi ? html`
+        <p className="field wide" style=${{ margin: 0 }}>What did your bank change?</p>
+        ${opt('emi', b, 'Change the EMI, keep my end date' + (loan.rateAdjust !== 'tenure' ? ' (your setting)' : ''))}
+        ${opt('tenure', a, 'Keep the EMI, change the number of months' + (loan.rateAdjust === 'tenure' ? ' (your setting)' : ''))}`
+      : html`<p className="calc">${a ? `Interest from this date is worked out at ${num(f.rate)}%. ${diffText(a)}` : 'Enter the new rate to see the effect.'}</p>`}
+      <${Field} label="Note" wide><input value=${f.note} onChange=${set('note')} placeholder="e.g. Repo rate cut, bank SMS dated ..." /><//>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+function AmortDetail({ loan, row, onClose }) {
+  const kind = loan.repayment;
+  const rate = row.rate === '' || row.rate === undefined ? rateAt(loan, row.dueDate) : num(row.rate);
+  const open = row.open === '' || row.open === undefined ? r2(num(row.balance) + num(row.principal)) : num(row.open);
+  const m = rate / 12 / 100;
+  const c = row.calc;
+  const paid = row.status === 'paid';
+  const step = (label, formula, value) => html`<div className="am-step"><div><div className="am-label">${label}</div>${formula && html`<div className="am-formula">${formula}</div>`}</div><strong>${value}</strong></div>`;
+  const emiWhy = c && ({
+    start: 'EMI worked out when the loan started.',
+    given: 'EMI as given by your bank.',
+    rate: 'EMI recalculated because the rate changed to ' + c.rate + '% from ' + fdate(c.date) + ', so the loan still ends on time.',
+    raise: 'The rate rose to ' + c.rate + '% from ' + fdate(c.date) + ' and the old EMI could no longer cover the interest, so it had to be raised.',
+    prepay: 'EMI recalculated after your part payment of ' + inr(c.amount) + ' on ' + fdate(c.date) + '.',
+    'rate-keep': 'The rate changed to ' + c.rate + '% from ' + fdate(c.date) + '. The EMI was kept the same, so the number of months changed instead.',
+  })[c.why];
+  const showFormula = c && c.months && ['start', 'rate', 'raise', 'prepay'].includes(c.why);
+  const cm = showFormula ? c.rate / 12 / 100 : 0;
+  return html`<${Modal} title=${'How payment ' + row.no + ' is worked out'} onClose=${onClose}
+      footer=${html`<button className="btn primary" onClick=${onClose}>Close</button>`}>
+    <p className="hint" style=${{ marginBottom: '12px' }}>${loanName(loan)}, due ${fdate(row.dueDate)}.${paid ? ' This payment is marked paid, so the figures are kept as recorded.' : ''}</p>
+    ${kind === 'bullet' ? html`
+      <div className="am">
+        ${step('Principal repaid at the end', '', inr(row.principal))}
+        ${step('Interest built up', 'Each month: balance × ' + rate + '% ÷ 12, added up over ' + (c && c.months || num(loan.tenureMonths)) + ' months', inr(row.interest))}
+        ${step('Total due on ' + fdate(row.dueDate), 'Principal + interest', inr(row.amount))}
+      </div>`
+    : html`
+      ${emiWhy && kind === 'emi' && html`<div className="calc" style=${{ marginBottom: '12px' }}>
+        <div>${emiWhy}</div>
+        ${showFormula && html`<div className="am-formula" style=${{ marginTop: '8px' }}>
+          EMI = P × r × (1 + r)<sup>n</sup> ÷ ((1 + r)<sup>n</sup> − 1)<br />
+          P = ${inr(c.bal)} outstanding, r = ${c.rate}% ÷ 12 ÷ 100 = ${(cm).toFixed(6)}, n = ${c.months} months left<br />
+          EMI = <strong>${inr(c.emi)}</strong></div>`}
+      </div>`}
+      <div className="am">
+        ${step('Balance at the start of the month', '', inr(open))}
+        ${step('Interest rate for this month', rate + '% a year ÷ 12 = ' + (rate / 12).toFixed(4) + '% a month', rate + '%')}
+        ${step('Interest', inr(open) + ' × ' + rate + '% ÷ 12', inr(row.interest))}
+        ${kind === 'emi'
+          ? step('Principal repaid', 'EMI ' + inr(row.amount) + ' − interest ' + inr(row.interest), inr(row.principal))
+          : step('Principal repaid', num(row.principal) > 0 ? 'Repaid in full with the last payment' : 'Interest-only month, no principal', inr(row.principal))}
+        ${step('Payment', kind === 'emi' ? 'Principal + interest' : 'Interest' + (num(row.principal) > 0 ? ' + principal' : ''), inr(row.amount))}
+        ${step('Balance after this payment', inr(open) + ' − ' + inr(row.principal), inr(row.balance))}
+      </div>
+      ${!paid && Math.abs(r2(open * m) - num(row.interest)) > 1 && html`<p className="hint" style=${{ marginTop: '10px', fontSize: '13px' }}>The interest here was edited by hand, so it differs from the formula (${inr(r2(open * m))}).</p>`}
+    `}
+    <p className="hint" style=${{ marginTop: '12px', fontSize: '13px' }}>Banks usually work out interest this way, monthly on the reducing balance. Some calculate daily, so your statement can differ by a few rupees.</p>
+  <//>`;
+}
+
+function EmiForm({ item, nextNo, onSave, onClose }) {
+  const [f, setF] = useState(item || { no: nextNo, dueDate: todayISO(), amount: '', principal: '', interest: '', balance: '', status: 'pending', paidDate: '', note: '' });
+  const [err, setErr] = useState('');
+  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const save = () => {
+    if (!f.dueDate) return setErr('Enter the due date.');
+    if (!(num(f.amount) > 0)) return setErr('Enter the amount.');
+    onSave({ ...f, id: f.id || uid(), no: Math.round(num(f.no)) || nextNo, amount: num(f.amount), principal: num(f.principal), interest: num(f.interest), balance: num(f.balance),
+      paidDate: f.status === 'paid' ? (f.paidDate || todayISO()) : '' });
+  };
+  return html`<${Modal} title=${item ? 'Edit loan payment' : 'Add loan payment'} onClose=${onClose}
+      footer=${html`<button className="btn" onClick=${onClose}>Cancel</button><button className="btn primary" onClick=${save}>${item ? 'Save changes' : 'Add'}</button>`}>
+    <div className="fields">
+      <${Field} label="No."><input type="number" min="1" value=${f.no} onChange=${set('no')} /><//>
+      <${Field} label="Due date"><input type="date" value=${f.dueDate} onChange=${set('dueDate')} /><//>
+      <${Field} label="Amount (₹)"><input type="number" min="0" step="any" value=${f.amount} onChange=${set('amount')} /><//>
+      <${Field} label="Principal part (₹)"><input type="number" min="0" step="any" value=${f.principal} onChange=${set('principal')} /><//>
+      <${Field} label="Interest part (₹)"><input type="number" min="0" step="any" value=${f.interest} onChange=${set('interest')} /><//>
+      <${Field} label="Balance after (₹)"><input type="number" min="0" step="any" value=${f.balance} onChange=${set('balance')} /><//>
+      <${Field} label="Status"><select value=${f.status} onChange=${set('status')}><option value="pending">Pending</option><option value="paid">Paid</option></select><//>
+      ${f.status === 'paid' && html`<${Field} label="Paid on"><input type="date" value=${f.paidDate || todayISO()} onChange=${set('paidDate')} /><//>`}
+      <${Field} label="Note" wide><input value=${f.note} onChange=${set('note')} placeholder="e.g. Paid with penalty" /><//>
+    </div>
+    ${err && html`<p className="err">${err}</p>`}
+  <//>`;
+}
+
+/* ---------- tabs ---------- */
+function Overview({ data, s, go }) {
+  const max = Math.max(1, ...CATS.map(c => s.byCat[c.id]), s.loanToSeller);
+  const used = CATS.filter(c => s.byCat[c.id] > 0);
+  const recent = data.payments.filter(p => p.status !== 'planned').sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
+  return html`<div className="cols">
+    <div>
+      <section className="box">
+        <h2>Where the money went</h2>
+        ${used.length === 0 && s.loanToSeller === 0
+          ? html`<div className="empty"><p>Nothing recorded yet. Add your booking advance or any other payment to see the breakdown.</p><button className="btn primary" onClick=${() => go('payments', true)}>Add payment</button></div>`
+          : html`
+            <div className="legend"><span>Toward land price</span><span className="extra">Additional cost</span></div>
+            <div className="bars">
+              ${s.loanToSeller > 0 && html`<div><div className="bar-head"><span>Loans paid to seller</span><span>${inr(s.loanToSeller)}</span></div><div className="track"><i style=${{ width: (s.loanToSeller / max * 100) + '%' }} /></div></div>`}
+              ${used.map(c => html`<div key=${c.id}>
+                <div className="bar-head"><span>${c.label}</span><span>${inr(s.byCat[c.id])}</span></div>
+                <div className="track"><i className=${s.byCatToward[c.id] >= s.byCat[c.id] ? '' : 'extra'} style=${{ width: (s.byCat[c.id] / max * 100) + '%' }} /></div>
+              </div>`)}
+            </div>`}
+      </section>
+      <section className="box">
+        <h2>Recent payments</h2>
+        ${recent.length === 0 ? html`<p className="hint">No payments yet.</p>` : html`
+          <ul className="recent">${recent.map(p => html`<li key=${p.id}>
+            <div><div>${p.description || catById[p.category].label}</div><div className="meta">${fdate(p.date)}, ${catById[p.category].label}</div></div>
+            <strong>${inr(p.amount)}</strong></li>`)}</ul>`}
+      </section>
+    </div>
+    <div>
+      ${s.planned.length > 0 && html`<section className="box">
+        <h2>Payments to make</h2>
+        ${s.plannedLate.length > 0 && html`<p className="alert">${s.plannedLate.length} planned payment${s.plannedLate.length > 1 ? 's are' : ' is'} past the due date.</p>`}
+        <ul className="recent" style=${{ marginBottom: '12px' }}>${s.planned.slice(0, 5).map(p => html`<li key=${p.id}>
+          <div><div>${p.description || catById[p.category].label}</div><div className=${'meta' + (p.date < todayISO() ? ' late' : '')}>${(p.date < todayISO() ? 'Was due ' : 'Due ') + fdate(p.date)}${p.paidTo ? ', to ' + p.paidTo : ''}</div></div>
+          <strong>${inr(p.amount)}</strong></li>`)}</ul>
+        <dl className="kv">
+          <div><dt>Total to pay</dt><dd>${inr(s.plannedTotal)}</dd></div>
+          ${s.plannedToward > 0 && html`<div><dt>Toward the land price</dt><dd>${inr(s.plannedToward)}</dd></div>`}
+          ${s.plannedExtra > 0 && html`<div><dt>Additional costs</dt><dd>${inr(s.plannedExtra)}</dd></div>`}
+        </dl>
+        ${s.planned.length > 5 && html`<button className="btn small" style=${{ marginTop: '12px' }} onClick=${() => go('payments')}>See all ${s.planned.length}</button>`}
+      </section>`}
+      ${s.totalCost > 0 && html`<section className="box">
+        <h2>Land price split</h2>
+        <div className="legend">${s.loanToSeller > 0 && html`<span className="loan">Loans</span>`}<span>You paid</span>${s.plannedToward > 0 && html`<span className="plan">Planned</span>`}<span className="due">Still to pay</span></div>
+        <div className="split" role="img" aria-label=${'Loans ' + inr(s.loanToSeller) + ', you paid ' + inr(s.towardDirect) + ', still to pay ' + inr(s.ownRemaining)}>
+          <i className="s-loan" style=${{ width: Math.min(100, s.loanToSeller / s.totalCost * 100) + '%' }} />
+          <i className="s-paid" style=${{ width: Math.min(100 - Math.min(100, s.loanToSeller / s.totalCost * 100), s.towardDirect / s.totalCost * 100) + '%' }} />
+          <i className="s-plan" style=${{ width: Math.max(0, Math.min(100 - Math.min(100, (s.loanToSeller + s.towardDirect) / s.totalCost * 100), s.plannedToward / s.totalCost * 100)) + '%' }} />
+        </div>
+        ${s.overpaid > 0 && html`<p className="calc warn" style=${{ marginBottom: '12px' }}>Loans paid to the seller plus payments marked "Include in land amount" are ${inr(s.overpaid)} more than the land price. Check the land price, the loan amounts, or which payments are included.</p>`}
+        <dl className="kv">
+          <div><dt>Land price</dt><dd>${inr(s.totalCost)}</dd></div>
+          ${s.loanToSeller > 0 && html`<div><dt>Loans paid to seller (${Math.round(s.loanPct * 1000) / 10}%)</dt><dd>${inr(s.loanToSeller)}</dd></div>`}
+          <div><dt>Your share (${Math.round((1 - s.loanPct) * 1000) / 10}%)</dt><dd>${inr(s.ownShare)}</dd></div>
+          <div><dt>Paid from your share</dt><dd>${inr(s.towardDirect)}</dd></div>
+          <div style=${{ borderTop: '1px solid var(--line)', paddingTop: '10px' }}><dt>Your share still to pay</dt><dd>${inr(s.ownRemaining)}</dd></div>
+          ${s.plannedToward > 0 && html`<div><dt>Planned so far</dt><dd>${inr(s.plannedToward)}</dd></div>`}
+          ${s.plannedToward > 0 && html`<div><dt>Not planned yet</dt><dd>${inr(s.unplannedRemaining)}</dd></div>`}
+        </dl>
+        ${s.loanToSelf > 0 && html`<p className="hint" style=${{ marginTop: '12px', fontSize: '13px' }}>Personal and other loans that came to your account (${inr(s.loanToSelf)}) count here only through the payments you made from them.</p>`}
+      </section>`}
+      <section className="box">
+        <h2>Loans</h2>
+        ${data.loans.length === 0
+          ? html`<p className="hint" style=${{ marginBottom: '14px' }}>No loans added. Add your land loan, personal loan or gold loan to track every payment.</p><button className="btn" onClick=${() => go('loans')}>Add a loan</button>`
+          : html`
+            ${s.overdue.length > 0 && html`<p className="alert">${s.overdue.length} loan payment${s.overdue.length > 1 ? 's are' : ' is'} past due and not marked paid.</p>`}
+            <ul className="recent" style=${{ marginBottom: '14px' }}>${s.loanStats.map(x => html`<li key=${x.loan.id}>
+              <div><div>${loanName(x.loan)}</div><div className="meta">${x.next ? 'Next ' + inr(x.next.amount) + ' on ' + fdate(x.next.dueDate) : x.count ? 'All paid' : 'No schedule yet'}</div></div>
+              <div style=${{ textAlign: 'right' }}><strong>${inr(x.outstanding)}</strong><div className="meta">outstanding</div></div></li>`)}</ul>
+            <dl className="kv">
+              <div><dt>Total borrowed</dt><dd>${inr(s.borrowed)}</dd></div>
+              <div><dt>Repaid so far</dt><dd>${inr(s.emiPaid + s.prepaid)}</dd></div>
+              <div><dt>Interest paid so far</dt><dd>${inr(s.interestPaid)}</dd></div>
+              ${s.charges > 0 && html`<div><dt>Pre-payment charges</dt><dd>${inr(s.charges)}</dd></div>`}
+              <div><dt>Total outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+              <div><dt>Total interest over all loans</dt><dd>${inr(s.scheduledInterest)}</dd></div>
+            </dl>`}
+      </section>
+      <section className="box">
+        <h2>Full cost of this land</h2>
+        <dl className="kv">
+          <div><dt>Agreed land price</dt><dd>${inr(s.totalCost)}</dd></div>
+          <div><dt>Additional costs so far</dt><dd>${inr(s.additional)}</dd></div>
+          <div><dt>Loan interest (full schedules)</dt><dd>${inr(s.scheduledInterest)}</dd></div>
+          <div style=${{ borderTop: '1px solid var(--line)', paddingTop: '10px' }}><dt>Projected total</dt><dd>${inr(s.projected)}</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>`;
+}
+
+function Payments({ data, s, onAdd, onEdit, onDelete, onMarkPaid }) {
+  const [filter, setFilter] = useState('all');
+  const today = todayISO();
+  const match = p => filter === 'all' || (filter === 'planned' ? p.status === 'planned' : filter === 'paid' ? p.status !== 'planned'
+    : filter === 'price' ? p.towardPrice : filter === 'extra' ? !p.towardPrice : p.category === filter);
+  const rows = data.payments.filter(match);
+  const planned = rows.filter(p => p.status === 'planned').sort((a, b) => (a.date > b.date ? 1 : -1));
+  const paid = rows.filter(p => p.status !== 'planned').sort((a, b) => (a.date < b.date ? 1 : -1));
+  const tot = arr => arr.reduce((a, p) => a + num(p.amount), 0);
+  const mobile = useIsMobile();
+  const isLate = p => p.status === 'planned' && p.date && p.date < today;
+  const acts = p => html`<div className="row-actions">
+    ${p.status === 'planned' && html`<button className="btn small" onClick=${() => onMarkPaid(p)}>Mark paid</button>`}
+    <button className="btn quiet small" onClick=${() => onEdit(p)}>Edit</button><button className="btn quiet small danger" onClick=${() => onDelete(p)}>Delete</button></div>`;
+  const dateText = p => p.status === 'planned' ? (isLate(p) ? 'Was due ' : 'Due ') + fdate(p.date) : fdate(p.date);
+  const pill = p => html`<span className=${'pill' + (p.towardPrice ? '' : ' extra')}>${catById[p.category].label}</span>`;
+
+  const section = (title, arr, kind) => arr.length === 0 ? null : mobile
+    ? html`<div className="pay-section">
+        ${title && html`<h3 className="pay-h">${title}</h3>`}
+        <div className="cards">
+          ${arr.map(p => html`<article key=${p.id} className=${'card' + (kind === 'planned' ? ' planned' : '') + (isLate(p) ? ' overdue' : '')}>
+            <div className="card-top">${pill(p)}<strong>${inr(p.amount)}</strong></div>
+            ${p.description && html`<div>${p.description}</div>`}
+            <div className=${'meta' + (isLate(p) ? ' late' : '')}>${[dateText(p), p.mode, p.paidTo && 'To ' + p.paidTo, p.reference && 'Ref ' + p.reference].filter(Boolean).join(', ')}</div>
+            ${acts(p)}
+          </article>`)}
+          <div className="card-total"><span>${arr.length} ${kind === 'planned' ? 'to pay' : 'paid'}</span><strong>${inr(tot(arr))}</strong></div>
+        </div></div>`
+    : html`<div className="pay-section">
+        ${title && html`<h3 className="pay-h">${title}</h3>`}
+        <div className="table-wrap"><table>
+          <thead><tr><th>${kind === 'planned' ? 'Due' : 'Date'}</th><th>For</th><th>Details</th><th>Mode</th><th className="num">Amount</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>${arr.map(p => html`<tr key=${p.id} className=${(kind === 'planned' ? 'planned' : '') + (isLate(p) ? ' overdue-row' : '')}>
+            <td className="nowrap">${kind === 'planned' ? html`<span className=${isLate(p) ? 'late' : ''}>${fdate(p.date)}</span>${isLate(p) && html`<div className="meta late">Overdue</div>`}` : fdate(p.date)}</td>
+            <td>${pill(p)}</td>
+            <td>${p.description || '—'}${(p.paidTo || p.reference) && html`<div className="meta">${[p.paidTo && 'To ' + p.paidTo, p.reference && 'Ref ' + p.reference].filter(Boolean).join(', ')}</div>`}</td>
+            <td className="nowrap">${p.mode || '—'}</td>
+            <td className="num"><strong>${inr(p.amount)}</strong></td>
+            <td>${acts(p)}</td>
+          </tr>`)}</tbody>
+          <tfoot><tr><td colSpan="4">${arr.length} ${kind === 'planned' ? 'to pay' : 'paid'}</td><td className="num">${inr(tot(arr))}</td><td></td></tr></tfoot>
+        </table></div></div>`;
+
+  return html`<div>
+    <div className="toolbar">
+      <div className="left">
+        <label className="visually-hidden" htmlFor="pf">Filter payments</label>
+        <select id="pf" className="filter" value=${filter} onChange=${e => setFilter(e.target.value)}>
+          <option value="all">All payments</option>
+          <option value="planned">To be paid</option>
+          <option value="paid">Paid</option>
+          <option value="price">Toward land price</option>
+          <option value="extra">Additional costs</option>
+          ${CATS.map(c => html`<option key=${c.id} value=${c.id}>${c.label}</option>`)}
+        </select>
+      </div>
+      <button className="btn primary" onClick=${onAdd}>Add payment</button>
+    </div>
+    ${data.payments.length === 0
+      ? html`<div className="box empty"><p>Record every rupee you spend on this land: the booking advance, payments to the seller, legal checks, registration, broker fees and so on. You can also add payments you'll make later.</p><button className="btn primary" onClick=${onAdd}>Add your first payment</button></div>`
+      : rows.length === 0 ? html`<div className="box empty"><p>No payments match this filter.</p></div>`
+      : html`${section('To be paid', planned, 'planned')}${section(planned.length ? 'Paid' : '', paid, 'paid')}`}
+  </div>`;
+}
+
+function Loans({ data, s, sel, setSel, on }) {
+  const [show, setShow] = useState('all');
+  const mobile = useIsMobile();
+  const today = todayISO();
+  if (!data.loans.length) return html`<div className="box empty">
+    <p>No loans yet. Add each loan you've taken for this land, such as the land loan from the bank, a personal loan or a gold loan.</p>
+    <div className="actions" style=${{ justifyContent: 'center' }}>
+      <button className="btn primary" onClick=${() => on.addLoan('land')}>Add land loan</button>
+      <button className="btn" onClick=${() => on.addLoan('personal')}>Add personal loan</button>
+      <button className="btn" onClick=${() => on.addLoan('gold')}>Add gold loan</button>
+    </div></div>`;
+  const L = data.loans.find(l => l.id === sel) || data.loans[0];
+  const st = s.loanStats.find(x => x.loan.id === L.id);
+  const kind = L.repayment, g = L.gold || {};
+  const rows = [...L.emis].filter(e => show === 'all' || (show === 'paid' ? e.status === 'paid' : e.status !== 'paid'))
+    .sort((a, b) => (a.dueDate > b.dueDate ? 1 : a.dueDate < b.dueDate ? -1 : a.no - b.no));
+  const nextAmt = st.next ? st.next.amount : 0;
+  const pillCls = t => 'pill' + (t === 'gold' ? ' extra' : t === 'land' ? '' : ' plain');
+  const acts = e => html`<div className="row-actions"><button className="btn quiet small" onClick=${() => on.explain(L.id, e)} title="How this payment is worked out">How?</button><button className="btn quiet small" onClick=${() => on.editRow(L.id, e)}>Edit</button><button className="btn quiet small danger" onClick=${() => on.deleteRow(L.id, e)}>Delete</button></div>`;
+
+  const cards = html`<div className="cards">
+    ${rows.map(e => {
+      const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
+      return html`<article key=${e.id} className=${'card' + (e.status === 'paid' ? ' paid' : overdue ? ' overdue' : '')}>
+        <div className="card-top">
+          <label className="emi-main">
+            <input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => on.toggle(L.id, e)} aria-label=${'Mark payment ' + e.no + ' paid'} />
+            <span><strong>No. ${e.no}</strong><span className="meta due" style=${{ display: 'block' }}>${e.status === 'paid' ? 'Paid ' + fdate(e.paidDate) : (overdue ? 'Overdue, was due ' : 'Due ') + fdate(e.dueDate)}</span></span>
+          </label>
+          <strong>${inr(e.amount)}</strong>
+        </div>
+        <div className="meta">Principal ${inr(e.principal)}, interest ${inr(e.interest)}${e.rate ? ' at ' + num(e.rate) + '%' : ''}, balance ${inr(e.balance)}${e.note ? '. ' + e.note : ''}</div>
+        ${acts(e)}
+      </article>`;
+    })}
+    <div className="card-total"><span>${rows.length} shown</span><strong>${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</strong></div>
+  </div>`;
+
+  const table = html`<div className="table-wrap"><table>
+    <thead><tr><th>Paid</th><th>No.</th><th>Due</th><th className="num">Opening</th><th className="num">Rate</th><th className="num">Interest</th><th className="num">Principal</th><th className="num">Amount</th><th className="num">Balance</th><th>Paid on</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>${rows.map(e => {
+      const overdue = e.status !== 'paid' && e.dueDate && e.dueDate < today;
+      return html`<tr key=${e.id} className=${e.status === 'paid' ? 'paid' : overdue ? 'overdue' : ''}>
+        <td><input type="checkbox" className="check" checked=${e.status === 'paid'} onChange=${() => on.toggle(L.id, e)} aria-label=${'Mark payment ' + e.no + ' paid'} /></td>
+        <td>${e.no}</td>
+        <td className="nowrap">${fdate(e.dueDate)}${e.calc && ['rate', 'raise', 'prepay', 'rate-keep'].includes(e.calc.why) && html`<div className="meta chg">${e.calc.why === 'prepay' ? 'EMI reset' : 'Rate ' + e.calc.rate + '%'}</div>`}</td>
+        <td className="num">${e.open === '' || e.open === undefined ? inr(r2(num(e.balance) + num(e.principal))) : inr(e.open)}</td>
+        <td className="num">${e.rate !== undefined && e.rate !== '' ? num(e.rate) + '%' : '—'}</td>
+        <td className="num">${inr(e.interest)}</td>
+        <td className="num">${inr(e.principal)}</td>
+        <td className="num"><strong>${inr(e.amount)}</strong></td>
+        <td className="num">${inr(e.balance)}</td>
+        <td className="nowrap">${e.status === 'paid' ? fdate(e.paidDate) : '—'}${e.note && html`<div className="meta">${e.note}</div>`}</td>
+        <td>${acts(e)}</td>
+      </tr>`;
+    })}</tbody>
+    <tfoot><tr><td colSpan="5">${rows.length} shown</td>
+      <td className="num">${inr(rows.reduce((a, e) => a + num(e.interest), 0))}</td>
+      <td className="num">${inr(rows.reduce((a, e) => a + num(e.principal), 0))}</td>
+      <td className="num">${inr(rows.reduce((a, e) => a + num(e.amount), 0))}</td><td colSpan="3"></td></tr></tfoot>
+  </table></div>`;
+
+  return html`<div>
+    <div className="loan-grid">
+      ${s.loanStats.map(x => html`<button key=${x.loan.id} className=${'loan-card' + (x.loan.id === L.id ? ' on' : '')} aria-pressed=${x.loan.id === L.id} onClick=${() => setSel(x.loan.id)}>
+        <span><span className=${pillCls(x.loan.type)}>${loanTypeById[x.loan.type].label}</span></span>
+        <strong>${loanName(x.loan)}</strong>
+        <span className="lc-amt">${inr(x.outstanding)} <small>left</small></span>
+        <span className="meta">${x.next ? 'Next ' + inr(x.next.amount) + ', ' + fdate(x.next.dueDate) : x.count ? 'All paid' : 'No schedule yet'}</span>
+        ${x.overdue.length > 0 && html`<span className="meta" style=${{ color: 'var(--danger)' }}>${x.overdue.length} overdue</span>`}
+      </button>`)}
+      <button className="loan-card add" onClick=${() => on.addLoan('personal')}>+ Add loan</button>
+    </div>
+
+    <section className="box" style=${{ marginBottom: '20px' }}>
+      <div className="toolbar">
+        <div><h2 style=${{ margin: 0 }}>${loanName(L)}</h2><p className="hint">${[loanTypeById[L.type].label, L.lender, L.accountNo && 'No. ' + L.accountNo].filter(Boolean).join(', ')}</p></div>
+        <div className="left">
+          <button className="btn primary" onClick=${() => on.prepay(L.id)}>Part payment</button>
+          ${L.rateType === 'floating' && html`<button className="btn" onClick=${() => on.rate(L.id)}>Rate changed</button>`}
+          ${L.rateType === 'floating' && html`<button className="btn quiet" onClick=${on.help} aria-label="How floating rates work">?</button>`}
+          <button className="btn" onClick=${() => on.editLoan(L.id)}>Edit loan</button>
+          <button className="btn" onClick=${() => on.rebuild(L.id)}>Rebuild schedule</button>
+          <button className="btn quiet danger" onClick=${() => on.deleteLoan(L.id)}>Delete</button>
+        </div>
+      </div>
+      <dl className="kv" style=${{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', columnGap: '28px' }}>
+        <div><dt>Loan amount</dt><dd>${inr(L.principal)}</dd></div>
+        <div><dt>Interest rate</dt><dd>${st.currentRate}% a year${L.rateType === 'floating' && L.rateChanges.length ? html` <small style=${{ color: 'var(--muted)', fontWeight: 500 }}>(started ${num(L.rate)}%)</small>` : ''}</dd></div>
+        <div><dt>Rate type</dt><dd>${L.rateType === 'floating' ? 'Floating' : 'Fixed' + (num(L.prepayChargePct) ? ', ' + num(L.prepayChargePct) + '% pre-payment charge' : '')}</dd></div>
+        ${L.rateType === 'floating' && kind === 'emi' && html`<div><dt>When the rate changes</dt><dd>${L.rateAdjust === 'tenure' ? 'EMI kept, tenure changes' : 'Tenure kept, EMI changes'}</dd></div>`}
+        <div><dt>Repayment</dt><dd>${repayById[kind].short}</dd></div>
+        <div><dt>Tenure</dt><dd>${Math.round(num(L.tenureMonths)) || '—'} months</dd></div>
+        ${L.loanDate && html`<div><dt>Loan date</dt><dd>${fdate(L.loanDate)}</dd></div>`}
+        <div><dt>${kind === 'emi' ? 'Current EMI' : kind === 'interest' ? 'Next interest' : 'Due at the end'}</dt><dd>${nextAmt ? inr(nextAmt) : '—'}</dd></div>
+        <div><dt>${kind === 'bullet' ? 'Due on' : 'Ends'}</dt><dd>${st.end ? fdate(st.end) : '—'}</dd></div>
+        <div><dt>Paid so far</dt><dd>${inr(st.paidAmt)}</dd></div>
+        <div><dt>Interest paid</dt><dd>${inr(st.interestPaid)}</dd></div>
+        <div><dt>Part payments</dt><dd>${inr(st.prepaid)}</dd></div>
+        <div><dt>Outstanding</dt><dd>${inr(st.outstanding)}</dd></div>
+        <div><dt>Money went to</dt><dd>${L.use === 'seller' ? 'Seller' : 'My account'}</dd></div>
+      </dl>
+      ${L.type === 'gold' && html`<div style=${{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+        <h3 style=${{ fontSize: '14px', marginBottom: '8px' }}>Gold pledged</h3>
+        <dl className="kv" style=${{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', columnGap: '28px' }}>
+          <div><dt>Weight</dt><dd>${num(g.weight) ? num(g.weight) + ' g' : '—'}</dd></div>
+          <div><dt>Purity</dt><dd>${g.purity || '—'}</dd></div>
+          <div><dt>Value at pledge</dt><dd>${st.goldValue ? inr(r2(st.goldValue)) : '—'}</dd></div>
+          <div><dt>Loan to value</dt><dd>${st.goldValue ? Math.round(num(L.principal) / st.goldValue * 1000) / 10 + '%' : '—'}</dd></div>
+          <div><dt>Pledge / receipt no.</dt><dd>${g.pledgeNo || '—'}</dd></div>
+        </dl></div>`}
+      ${L.rateType === 'floating' && L.rateChanges.length > 0 && html`<div style=${{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+        <h3 style=${{ fontSize: '14px', marginBottom: '6px' }}>Rate changes</h3>
+        <ul className="recent">
+          <li><div><div><strong>${num(L.rate)}%</strong> from the start</div><div className="meta">${L.loanDate ? fdate(L.loanDate) : 'Loan start'}</div></div></li>
+          ${[...L.rateChanges].sort((a, b) => (a.date > b.date ? 1 : -1)).map(x => html`<li key=${x.id}>
+          <div><div><strong>${num(x.rate)}%</strong> from ${fdate(x.date)}</div><div className="meta">${kind === 'emi' ? (x.adjust === 'emi' ? 'EMI changed, tenure kept' : 'EMI kept, tenure changed') : 'Interest recalculated'}${x.note ? ', ' + x.note : ''}</div></div>
+          <button className="btn quiet small danger" onClick=${() => on.deleteRate(L.id, x)}>Delete</button></li>`)}</ul>
+      </div>`}
+      ${L.prepayments.length > 0 && html`<div style=${{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+        <h3 style=${{ fontSize: '14px', marginBottom: '6px' }}>Part payments</h3>
+        <ul className="recent">${[...L.prepayments].sort((a, b) => (a.date > b.date ? 1 : -1)).map(x => html`<li key=${x.id}>
+          <div><div><strong>${inr(x.amount)}</strong> on ${fdate(x.date)}</div><div className="meta">${kind !== 'emi' ? 'Reduced principal' : x.mode === 'emi' ? 'Reduced EMI' : 'Reduced tenure'}${x.charge ? ', charge ' + inr(x.charge) : ''}${x.note ? ', ' + x.note : ''}</div></div>
+          <button className="btn quiet small danger" onClick=${() => on.deletePrepay(L.id, x)}>Delete</button></li>`)}</ul>
+      </div>`}
+    </section>
+
+    <div className="toolbar">
+      <div className="left">
+        <label className="visually-hidden" htmlFor="ef">Show payments</label>
+        <select id="ef" className="filter" value=${show} onChange=${e => setShow(e.target.value)}>
+          <option value="all">All payments</option><option value="pending">Pending</option><option value="paid">Paid</option>
+        </select>
+        <span style=${{ color: 'var(--muted)', fontSize: '14px' }}>Tick each one when you pay it.${st.overdue.length > 0 ? ' ' + st.overdue.length + ' overdue.' : ''} Interest = opening balance × rate ÷ 12. Tap How? on any row for the working.</span>
+      </div>
+      <button className="btn" onClick=${() => on.addRow(L.id)}>Add row</button>
+    </div>
+    ${L.emis.length === 0
+      ? html`<div className="box empty"><p>No payment schedule yet. Edit the loan and fill in the amount, tenure and dates to create it, or add rows one by one.</p></div>`
+      : rows.length === 0 ? html`<div className="box empty"><p>No ${show} payments.</p></div>`
+      : mobile ? cards : table}
+  </div>`;
+}
+
+function Property({ data, update, onReset, drive, extra, onDeleteProperty, propCount }) {
+  const P = data.property;
+  const set = k => e => update(d => ({ ...d, property: { ...d.property, [k]: e.target.value } }));
+  return html`<div>
+    <section className="box">
+      <h2>About the land</h2>
+      <div className="fields">
+        <${Field} label="Name for this purchase" wide><input value=${P.name} onChange=${set('name')} placeholder="e.g. Plot at Padappai" /><//>
+        <${Field} label="Location / address" wide><input value=${P.location} onChange=${set('location')} /><//>
+        <${Field} label="Survey number"><input value=${P.surveyNo} onChange=${set('surveyNo')} /><//>
+        <${Field} label="Area">
+          <div style=${{ display: 'flex', gap: '8px' }}>
+            <input type="number" min="0" step="any" value=${P.area} onChange=${set('area')} style=${{ flex: 1, minWidth: 0 }} />
+            <select value=${P.areaUnit} onChange=${set('areaUnit')} style=${{ width: 'auto' }}>${UNITS.map(u => html`<option key=${u}>${u}</option>`)}</select>
+          </div>
+        <//>
+        <${Field} label="Agreed land price (₹)" help="The price agreed with the seller, before registration and other costs."><input type="number" min="0" step="any" value=${P.totalCost} onChange=${set('totalCost')} /><//>
+        <${Field} label="Agreement date"><input type="date" value=${P.agreementDate} onChange=${set('agreementDate')} /><//>
+        <${Field} label="Seller" wide><input value=${P.seller} onChange=${set('seller')} /><//>
+        <${Field} label="Notes" wide><textarea value=${P.notes} onChange=${set('notes')} placeholder="Documents pending, contacts, anything to remember" /><//>
+      </div>
+    </section>
+    <section className="box">
+      <h2>Google Drive sync</h2>
+      ${!GOOGLE_CLIENT_ID
+        ? html`<p className="hint" style=${{ marginBottom: '10px' }}>Drive sync is off. To turn it on, deploy with the included GitHub Actions workflow and set the <code>GOOGLE_CLIENT_ID</code> repository variable (see README). Until then, use Import JSON and Export JSON.</p>`
+        : !drive.available
+        ? html`<p className="hint">Google sign-in couldn't load here. Open the app from its hosted address to use Drive sync.</p>`
+        : html`<p className="hint" style=${{ marginBottom: '14px' }}>${drive.linked
+              ? 'This device saves to ' + DRIVE_FILE_NAME + ' in your Google Drive automatically after each change. Open the app on another device and tap Sync with Drive to get the same data.'
+              : 'Connect once and every change is saved to ' + DRIVE_FILE_NAME + ' in your Google Drive, so your phone and laptop share the same data.'}</p>
+            <div className="actions">
+              ${!drive.connected && html`<button className="btn primary" onClick=${drive.onConnect}>${drive.linked ? 'Sync with Drive' : 'Connect Google Drive'}</button>`}
+              ${drive.connected && html`<button className="btn" onClick=${drive.onSaveNow}>Save to Drive now</button>`}
+              ${drive.linked && html`<button className="btn quiet" onClick=${drive.onDisconnect}>Disconnect</button>`}
+            </div>`}
+    </section>
+    ${extra}
+    <section className="box danger-zone">
+      <h2>Remove this property</h2>
+      <p className="hint" style=${{ marginBottom: '14px' }}>Deletes this property with its payments and loans. ${propCount > 1 ? 'Your other properties and net worth entries stay.' : 'It is your only property, so a blank one takes its place.'}</p>
+      <button className="btn danger" onClick=${onDeleteProperty}>Delete this property</button>
+    </section>
+    <section className="box danger-zone">
+      <h2>Start over</h2>
+      <p className="hint" style=${{ marginBottom: '14px' }}>Clears everything on this device. Export JSON first if you want to keep a copy.</p>
+      <button className="btn danger" onClick=${onReset}>Clear all data</button>
+    </section>
+  </div>`;
+}
+
+/* ---------- app ---------- */
+function App({ initial, initialLock, onLock }) {
+  const [data, setData] = useState(initial);
+  const [lock, setLock] = useState(initialLock || null);
+  const persistRef = useRef(Promise.resolve());
+  const [lastExport, setLastExport] = useState(() => { try { return localStorage.getItem(STORE_KEY + ':exported') || ''; } catch (e) { return ''; } });
+  const [tab, setTab] = useState('overview');
+  const [view, setView] = useState('property');   // 'property' or 'networth'
+  const [activeId, setActiveId] = useState(() => { try { return localStorage.getItem(STORE_KEY + ':active') || ''; } catch (e) { return ''; } });
+  const [modal, setModal] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [toast, setToast] = useState('');
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+
+  /* Drive sync state */
+  const [driveAvail, setDriveAvail] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [link, setLink] = useState(() => { try { return JSON.parse(localStorage.getItem(LINK_KEY)) || null; } catch (e) { return null; } });
+  const [sync, setSync] = useState({ status: 'idle', message: '' });
+  const [conflict, setConflict] = useState(null);
+  const dataRef = useRef(data); dataRef.current = data;
+  const linkRef = useRef(link);
+  const statusRef = useRef(sync.status); statusRef.current = sync.status;
+  const saveTimer = useRef(null);
+  useEffect(() => { Drive.load().then(setDriveAvail); }, []);
+
+  const saveLink = l => { linkRef.current = l; setLink(l); try { l ? localStorage.setItem(LINK_KEY, JSON.stringify(l)) : localStorage.removeItem(LINK_KEY); } catch (e) {} };
+  const driveFail = e => {
+    if (e.code === 'auth') { setConnected(false); setSync({ status: 'expired', message: e.message }); }
+    else setSync({ status: 'error', message: e.message });
+  };
+  const pushLocal = async fileId => {
+    const d = dataRef.current;
+    const res = fileId ? await Drive.write(fileId, d) : await Drive.create(d);
+    saveLink({ fileId: res.id, modified: res.modifiedTime, base: d.updatedAt || null });
+    setSync({ status: 'saved', message: '' });
+  };
+  const takeRemote = (remote, meta) => {
+    saveLink({ fileId: meta.id, modified: meta.modifiedTime, base: remote.updatedAt || null });
+    setData(remote);
+    setSync({ status: 'saved', message: '' });
+  };
+  const connectDrive = async () => {
+    setSync({ status: 'working', message: '' });
+    try {
+      await Drive.signIn(); setConnected(true);
+      const l = linkRef.current; let meta = null;
+      if (l && l.fileId) { try { meta = await Drive.meta(l.fileId); if (meta.trashed) meta = null; } catch (e) { if (e.code === 'auth') throw e; } }
+      if (!meta) meta = await Drive.find();
+      if (!meta) { await pushLocal(null); setToast('Created ' + DRIVE_FILE_NAME + ' in your Google Drive.'); return; }
+      const remote = normalize(await Drive.read(meta.id));
+      const local = dataRef.current;
+      const base = l && l.fileId === meta.id ? l.base : undefined;
+      const localChanged = !!local.updatedAt && local.updatedAt !== base;
+      const remoteChanged = remote.updatedAt !== base;
+      if (!localChanged || remote.updatedAt === local.updatedAt) { takeRemote(remote, meta); setToast('Synced with Google Drive.'); }
+      else if (!remoteChanged) { await pushLocal(meta.id); setToast("Saved this device's changes to Drive."); }
+      else { setConflict({ remote, meta }); setSync({ status: 'conflict', message: '' }); }
+    } catch (e) { driveFail(e); setToast(e.message); }
+  };
+  const saveToDrive = async () => {
+    const l = linkRef.current;
+    if (!l || !Drive.hasToken()) return;
+    setSync({ status: 'working', message: '' });
+    try {
+      const meta = await Drive.meta(l.fileId);
+      if (meta.trashed) { await pushLocal(null); return; }
+      if (meta.modifiedTime !== l.modified) {
+        const remote = normalize(await Drive.read(l.fileId));
+        if (remote.updatedAt !== l.base) { setConflict({ remote, meta }); setSync({ status: 'conflict', message: '' }); return; }
+      }
+      await pushLocal(l.fileId);
+    } catch (e) {
+      if (e.status === 404) { try { await pushLocal(null); } catch (e2) { driveFail(e2); } }
+      else driveFail(e);
+    }
+  };
+  useEffect(() => {
+    const l = linkRef.current;
+    if (!connected || !l || ['conflict', 'expired'].includes(statusRef.current) || data.updatedAt === l.base) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(saveToDrive, 1500);
+    return () => clearTimeout(saveTimer.current);
+  }, [data, connected]);
+  const useDriveVersion = () => { const c = conflict; setConflict(null); takeRemote(c.remote, c.meta); setToast('Loaded the Drive version.'); };
+  const keepLocal = async () => {
+    const c = conflict; setConflict(null); setSync({ status: 'working', message: '' });
+    try { await pushLocal(c.meta.id); setToast("Drive now has this device's version."); } catch (e) { driveFail(e); }
+  };
+  const disconnectDrive = () => { Drive.signOut(); saveLink(null); setConnected(false); setConflict(null); setSync({ status: 'idle', message: '' }); setToast('Disconnected from Google Drive.'); };
+
+  useEffect(() => {
+    let stale = false;
+    persistRef.current = (async () => {
+      try {
+        const value = JSON.stringify(lock ? await sealData(lock, data) : data);
+        if (!stale) localStorage.setItem(STORE_KEY, value);
+      } catch (e) {}
+    })();
+    return () => { stale = true; };
+  }, [data, lock]);
+  const doLock = async () => { clearTimeout(saveTimer.current); await persistRef.current; onLock(); };
+  useEffect(() => {
+    if (!lock) return;
+    let last = Date.now();
+    const bump = () => { last = Date.now(); };
+    const check = () => { if (Date.now() - last > LOCK_AFTER_MS) doLock(); };
+    const vis = () => { if (document.visibilityState === 'visible') { check(); bump(); } };
+    const evs = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    evs.forEach(ev => window.addEventListener(ev, bump, { passive: true }));
+    document.addEventListener('visibilitychange', vis);
+    const t = setInterval(check, 30000);
+    return () => { evs.forEach(ev => window.removeEventListener(ev, bump)); document.removeEventListener('visibilitychange', vis); clearInterval(t); };
+  }, [lock]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t); }, [toast]);
+
+  const propIdx = Math.max(0, data.properties.findIndex(x => x.id === activeId));
+  const prop = data.properties[propIdx];
+  useEffect(() => { try { localStorage.setItem(STORE_KEY + ':active', prop.id); } catch (e) {} }, [prop.id]);
+  const pd = useMemo(() => viewOf(prop, data), [prop, data.networth]);
+  const updateP = fn => update(d => ({ ...d, properties: d.properties.map(x => {
+    if (x.id !== prop.id) return x;
+    const out = fn(viewOf(x, d));
+    return { ...x, property: out.property, payments: out.payments, loans: out.loans };
+  }) }));
+  const s = useMemo(() => summarize(pd), [pd]);
+  const update = fn => setData(d => ({ ...fn(d), updatedAt: new Date().toISOString() }));
+  const markExported = () => { const t = new Date().toISOString(); setLastExport(t); try { localStorage.setItem(STORE_KEY + ':exported', t); } catch (e) {} };
+  const unsaved = !!data.updatedAt && (!lastExport || data.updatedAt > lastExport);
+  const P = pd.property;
+  const baseName = 'land-ledger-' + (data.properties.length > 1 ? 'all' : slug(P.name)) + '-' + todayISO();
+
+  const exportJson = async () => {
+    setBusy(true);
+    try {
+      const r = await offerFile(baseName + '.json', JSON.stringify(data, null, 2), 'application/json');
+      if (r === 'saved') { markExported(); setToast('JSON exported.'); } else setToast('Export cancelled.');
+    } catch (e) { setToast(e.message); } finally { setBusy(false); }
+  };
+  const exportExcel = async () => {
+    setBusy(true);
+    try {
+      const buf = buildWorkbook(data);
+      const r = await offerFile(baseName + '.xlsx', buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      setToast(r === 'saved' ? 'Excel file downloaded.' : 'Download cancelled.');
+    } catch (e) { setToast(e.message || 'The Excel file could not be created.'); } finally { setBusy(false); }
+  };
+  const onFile = async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const parsed = normalize(JSON.parse(await file.text()));
+      const apply = () => { setData({ ...parsed, updatedAt: new Date().toISOString() }); markExported(); setTab('overview'); setToast('Imported ' + file.name + '.'); };
+      if (data.properties.some(x => x.payments.length || x.loans.length || x.property.name)) {
+        setConfirm({ title: 'Replace current data?', text: 'Importing ' + file.name + ' replaces everything currently in the app.', yes: 'Import and replace', run: apply });
+      } else apply();
+    } catch (err) { setToast(err instanceof SyntaxError ? 'That file is not valid JSON.' : err.message); }
+  };
+
+  const markPaid = p => {
+    updateP(d => ({ ...d, payments: d.payments.map(x => x.id === p.id ? { ...x, status: 'paid', date: todayISO() } : x) }));
+    setToast('Marked paid today. Edit it to change the date or add the reference.');
+  };
+  const savePayment = p => { updateP(d => ({ ...d, payments: d.payments.some(x => x.id === p.id) ? d.payments.map(x => x.id === p.id ? p : x) : [...d.payments, p] })); setModal(null); setToast(modal.item ? 'Payment updated.' : 'Payment added.'); };
+  const [loanSel, setLoanSel] = useState(null);
+  const updLoan = (id, fn) => updateP(d => ({ ...d, loans: d.loans.map(l => l.id === id ? fn(l) : l) }));
+  const getLoan = id => pd.loans.find(l => l.id === id);
+  const resched = l => { try { return { ...l, emis: buildSchedule(l, [...l.emis].sort((a, b) => a.no - b.no)) }; } catch (e) { setToast(e.message); return l; } };
+  const saveLoan = l => {
+    const exists = pd.loans.some(x => x.id === l.id);
+    updateP(d => ({ ...d, loans: exists ? d.loans.map(x => x.id === l.id ? l : x) : [...d.loans, l] }));
+    setLoanSel(l.id); setModal(null); setToast(exists ? 'Loan saved.' : 'Loan added.');
+  };
+  const deleteLoan = id => { const l = getLoan(id); setConfirm({ title: 'Delete ' + loanName(l) + '?', text: 'The loan, its payment schedule and part payments are removed. This can\'t be undone unless you re-import an earlier JSON export.', yes: 'Delete loan', danger: true,
+    run: () => { updateP(d => ({ ...d, loans: d.loans.filter(x => x.id !== id) })); setLoanSel(null); setToast('Loan deleted.'); } }); };
+  const rebuild = id => setConfirm({ title: 'Rebuild the schedule?', text: 'The schedule is recalculated from the loan terms and part payments. Payments already marked paid stay as they are; manual edits to pending rows are replaced.', yes: 'Rebuild schedule',
+    run: () => { updLoan(id, resched); setToast('Schedule rebuilt.'); } });
+  const savePrepay = (id, x) => { updLoan(id, l => resched({ ...l, prepayments: [...l.prepayments, x] })); setModal(null); setToast('Part payment saved and schedule updated.'); };
+  const deletePrepay = (id, x) => setConfirm({ title: 'Delete this part payment?', text: 'The ' + inr(x.amount) + ' part payment on ' + fdate(x.date) + ' is removed and the schedule is recalculated without it.', yes: 'Delete', danger: true,
+    run: () => { updLoan(id, l => resched({ ...l, prepayments: l.prepayments.filter(y => y.id !== x.id) })); setToast('Part payment deleted.'); } });
+  const saveRate = (id, x) => { updLoan(id, l => resched({ ...l, rateChanges: [...l.rateChanges, x] })); setModal(null); setToast('New rate saved from ' + fdate(x.date) + '. Schedule updated.'); };
+  const deleteRate = (id, x) => setConfirm({ title: 'Delete this rate change?', text: 'The change to ' + num(x.rate) + '% from ' + fdate(x.date) + ' is removed and the schedule is recalculated without it.', yes: 'Delete', danger: true,
+    run: () => { updLoan(id, l => resched({ ...l, rateChanges: l.rateChanges.filter(y => y.id !== x.id) })); setToast('Rate change deleted.'); } });
+  const toggleRow = (id, e) => updLoan(id, l => ({ ...l, emis: l.emis.map(x => x.id === e.id ? { ...x, status: x.status === 'paid' ? 'pending' : 'paid', paidDate: x.status === 'paid' ? '' : todayISO() } : x) }));
+  const saveRow = (id, em) => { updLoan(id, l => ({ ...l, emis: l.emis.some(x => x.id === em.id) ? l.emis.map(x => x.id === em.id ? em : x) : [...l.emis, em] })); setModal(null); setToast('Saved.'); };
+  const deleteRow = (id, e) => setConfirm({ title: 'Delete payment ' + e.no + '?', text: 'This row is removed from the schedule.', yes: 'Delete', danger: true,
+    run: () => { updLoan(id, l => ({ ...l, emis: l.emis.filter(x => x.id !== e.id) })); setToast('Deleted.'); } });
+  const nw = useMemo(() => computeNetWorth(data), [data]);
+  const updateNw = fn => update(d => ({ ...d, networth: fn(d.networth) }));
+  const nwKey = kind => (kind === 'asset' ? 'assets' : 'liabilities');
+  const setPropField = (id, k, v) => update(d => ({ ...d, properties: d.properties.map(x => x.id === id ? { ...x, property: { ...x.property, [k]: v } } : x) }));
+  const addProperty = () => {
+    const np = blankProperty();
+    update(d => ({ ...d, properties: [...d.properties, np] }));
+    setActiveId(np.id); setView('property'); setTab('property'); setLoanSel(null);
+    setToast('New property added. Fill in its details.');
+  };
+  const openProperty = id => { setActiveId(id); setView('property'); setLoanSel(null); };
+  const deleteProperty = () => setConfirm({ title: 'Delete ' + propLabel(prop, propIdx) + '?', text: 'Its payments and loans are removed. This can\'t be undone unless you re-import an earlier JSON export.', yes: 'Delete property', danger: true,
+    run: () => {
+      update(d => { const rest = d.properties.filter(x => x.id !== prop.id); return { ...d, properties: rest.length ? rest : [blankProperty()] }; });
+      setActiveId(''); setTab('overview'); setLoanSel(null); setToast('Property deleted.');
+    } });
+  const nwHandlers = {
+    setProp: setPropField,
+    add: kind => setModal({ type: 'nw', kind }),
+    edit: (kind, item) => setModal({ type: 'nw', kind, item }),
+    del: (kind, item) => setConfirm({ title: 'Delete ' + item.name + '?', text: 'It is removed from your net worth.', yes: 'Delete', danger: true,
+      run: () => { updateNw(n => ({ ...n, [nwKey(kind)]: n[nwKey(kind)].filter(x => x.id !== item.id) })); setToast('Deleted.'); } }),
+    snapshot: () => {
+      const snap = { id: uid(), date: todayISO(), assets: r2(nw.totA), liabilities: r2(nw.totL), net: r2(nw.net) };
+      updateNw(n => ({ ...n, snapshots: [...n.snapshots.filter(x => x.date !== snap.date), snap] }));
+      setToast("Saved today's net worth: " + inr(snap.net) + '.');
+    },
+    delSnap: x => setConfirm({ title: 'Delete the ' + fdate(x.date) + ' entry?', text: 'It is removed from your net worth history.', yes: 'Delete', danger: true,
+      run: () => { updateNw(n => ({ ...n, snapshots: n.snapshots.filter(y => y.id !== x.id) })); setToast('Deleted.'); } }),
+  };
+  const saveNwItem = (kind, item) => {
+    updateNw(n => { const k = nwKey(kind); return { ...n, [k]: n[k].some(x => x.id === item.id) ? n[k].map(x => x.id === item.id ? item : x) : [...n[k], item] }; });
+    setModal(null); setToast('Saved.');
+  };
+  const loanHandlers = {
+    addLoan: type => setModal({ type: 'loan', loan: blankLoan(type), isNew: true }),
+    editLoan: id => setModal({ type: 'loan', loan: getLoan(id), isNew: false }),
+    deleteLoan, rebuild,
+    prepay: id => setModal({ type: 'prepay', loanId: id }), deletePrepay,
+    rate: id => setModal({ type: 'rate', loanId: id }), deleteRate,
+    help: () => setModal({ type: 'help' }),
+    explain: (id, e) => setModal({ type: 'explain', loanId: id, row: e }),
+    toggle: toggleRow, deleteRow,
+    addRow: id => setModal({ type: 'row', loanId: id }),
+    editRow: (id, e) => setModal({ type: 'row', loanId: id, item: e }),
+  };
+  const del = (kind, item, label) => setConfirm({ title: 'Delete ' + label + '?', text: 'This can\'t be undone unless you re-import an earlier JSON export.', yes: 'Delete', danger: true,
+    run: () => { updateP(d => ({ ...d, [kind]: d[kind].filter(x => x.id !== item.id) })); setToast('Deleted.'); } });
+
+  const go = (t, add) => { setTab(t); if (add) setModal({ type: 'payment' }); };
+  const tabs = [['overview', 'Overview'], ['payments', 'Payments', pd.payments.length], ['loans', 'Loans', pd.loans.length], ['property', 'Property details']];
+  const driveSynced = connected && link && data.updatedAt === link.base && sync.status !== 'working';
+  let driveUI = null;
+  if (driveAvail) {
+    if (!connected) driveUI = html`<button className="btn full" onClick=${connectDrive} disabled=${sync.status === 'working'}>${sync.status === 'working' ? 'Connecting…' : link ? 'Sync with Drive' : 'Connect Google Drive'}</button>`;
+    else if (sync.status === 'error') driveUI = html`<span className="sync"><i className="err" />Drive save failed <button className="btn small" onClick=${saveToDrive}>Retry</button></span>`;
+    else if (sync.status === 'conflict') driveUI = html`<span className="sync"><i className="err" />Choose a version below</span>`;
+    else driveUI = html`<span className="sync"><i className=${driveSynced ? '' : 'warn'} />${driveSynced ? 'Saved to Drive' : 'Saving to Drive…'}</span>`;
+  }
+  const meta = [P.location, P.surveyNo && 'Survey no. ' + P.surveyNo, P.area && P.area + ' ' + P.areaUnit].filter(Boolean).join(', ');
+
+  return html`<div className="wrap">
+    <header className="top">
+      <div>
+        <h1>${view === 'networth' ? 'Net worth' : propLabel(prop, propIdx)}</h1>
+        <p className="sub">${view === 'networth' ? 'Everything you own and owe, across ' + data.properties.length + ' propert' + (data.properties.length === 1 ? 'y' : 'ies') + '.' : (meta || 'Add the land details under Property details.')}</p>
+      </div>
+      <div className="actions">
+        ${driveUI}
+        ${lock && html`<button className="btn" onClick=${doLock}>Lock</button>`}
+        <input ref=${fileRef} type="file" accept=".json,application/json" hidden onChange=${onFile} />
+        <button className="btn" onClick=${() => fileRef.current.click()}>Import JSON</button>
+        <button className="btn" onClick=${exportJson} disabled=${busy}>Export JSON</button>
+        <button className="btn primary full" onClick=${exportExcel} disabled=${busy}>Download Excel</button>
+      </div>
+    </header>
+    ${conflict && html`<div className="notice conflict"><span>Your Drive copy was changed on another device${conflict.remote.updatedAt ? ' (last edit ' + new Date(conflict.remote.updatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) + ')' : ''}. Which version do you want to keep?</span>
+      <div className="btns"><button className="btn small" onClick=${useDriveVersion}>Use Drive version</button><button className="btn small" onClick=${keepLocal}>Keep this device's version</button></div></div>`}
+    ${unsaved && !link && html`<div className="notice"><span>You have changes that aren't in an exported JSON file yet.</span><button className="btn small" onClick=${exportJson} disabled=${busy}>Export JSON now</button></div>`}
+
+    <nav className="prop-bar" aria-label="Properties">
+      ${data.properties.map((x, i) => html`<button key=${x.id} className=${'prop-tab' + (view === 'property' && x.id === prop.id ? ' on' : '')} aria-current=${view === 'property' && x.id === prop.id ? 'page' : null} onClick=${() => openProperty(x.id)}>
+        <span className="pt-name">${propLabel(x, i)}</span>${x.property.location && html`<span className="pt-meta">${x.property.location}</span>`}</button>`)}
+      <button className="prop-tab add" onClick=${addProperty}>+ Add property</button>
+      <button className=${'prop-tab nw' + (view === 'networth' ? ' on' : '')} aria-current=${view === 'networth' ? 'page' : null} onClick=${() => setView('networth')}>
+        <span className="pt-name">Net worth</span><span className="pt-meta">All properties</span></button>
+    </nav>
+
+    ${view === 'networth' ? html`<main className="panel"><${NetWorth} data=${data} nw=${nw} updateNw=${updateNw} on=${nwHandlers} /></main>` : html`
+    <section className="hero">
+      <${PlotFigure} pct=${s.pct} surveyNo=${P.surveyNo} />
+      <div className="headline">
+        <p className="lede">Paid toward the land</p>
+        <p className="big">${inr(s.towardPrice)}</p>
+        ${s.totalCost > 0
+          ? html`<p className="of">of ${inr(s.totalCost)} agreed with the seller. ${s.balance > 0 ? html`<strong>${inr(s.balance)}</strong> still due.` : 'Fully paid.'}</p>`
+          : html`<p className="of">Set the agreed land price to track how much is left to pay. <button className="btn small" onClick=${() => setTab('property')}>Add land price</button></p>`}
+      </div>
+      <dl className="ledger">
+          <div><dt>Your own money spent</dt><dd>${inr(s.pocket)}</dd></div>
+          <div><dt>Additional costs</dt><dd>${inr(s.additional)}</dd></div>
+          <div><dt>Loan payments made</dt><dd>${s.emiPaidCount} <small>of ${s.emiCount}</small></dd></div>
+          <div><dt>Loans outstanding</dt><dd>${inr(s.loanOutstanding)}</dd></div>
+          ${s.plannedTotal > 0 && html`<div><dt>Payments to make</dt><dd>${inr(s.plannedTotal)} <small>${s.planned.length} planned</small></dd></div>`}
+      </dl>
+    </section>
+
+    <nav className="tabs" role="tablist">
+      ${tabs.map(([id, label, count]) => html`<button key=${id} className="tab" role="tab" aria-selected=${tab === id} onClick=${() => setTab(id)}>${label}${count ? html`<span className="count">${count}</span>` : null}</button>`)}
+    </nav>
+    <main className="panel">
+      ${tab === 'overview' && html`<${Overview} data=${pd} s=${s} go=${go} />`}
+      ${tab === 'payments' && html`<${Payments} data=${pd} s=${s} onMarkPaid=${markPaid}
+          onAdd=${() => setModal({ type: 'payment' })} onEdit=${p => setModal({ type: 'payment', item: p })}
+          onDelete=${p => del('payments', p, 'this payment of ' + inr(p.amount))} />`}
+      ${tab === 'loans' && html`<${Loans} data=${pd} s=${s} sel=${loanSel} setSel=${setLoanSel} on=${loanHandlers} />`}
+      ${tab === 'property' && html`<${Property} data=${pd} update=${updateP} onDeleteProperty=${deleteProperty} propCount=${data.properties.length}
+          extra=${html`<${LockSettings} lock=${lock} onLockNow=${doLock}
+            onEnable=${async pass => { setLock(await makeLock(pass)); setToast('App lock is on.'); }}
+            onDisable=${async () => { setLock(null); setToast('App lock is off.'); }} />`}
+          drive=${{ available: driveAvail, linked: !!link, connected, onConnect: connectDrive, onDisconnect: disconnectDrive, onSaveNow: saveToDrive }}
+          onReset=${() => setConfirm({ title: 'Clear all data?', text: 'Every payment, loan and property detail is removed from this device.' + (link ? ' Your Drive file is left as it is, and this device is disconnected from it.' : ''), yes: 'Clear everything', danger: true,
+            run: () => { if (link) { Drive.signOut(); saveLink(null); setConnected(false); setSync({ status: 'idle', message: '' }); } setData(blank()); setActiveId(''); setTab('overview'); setToast('All data cleared.'); } })} />`}
+    </main>`}
+
+    ${modal && modal.type === 'payment' && html`<${PaymentForm} item=${modal.item} onSave=${savePayment} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'row' && getLoan(modal.loanId) && html`<${EmiForm} item=${modal.item} nextNo=${getLoan(modal.loanId).emis.reduce((m, e) => Math.max(m, e.no), 0) + 1} onSave=${em => saveRow(modal.loanId, em)} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'rate' && getLoan(modal.loanId) && html`<${RateChangeForm} loan=${getLoan(modal.loanId)} onSave=${x => saveRate(modal.loanId, x)} onClose=${() => setModal(null)} onHelp=${() => setModal({ type: 'help', back: modal })} />`}
+    ${modal && modal.type === 'explain' && getLoan(modal.loanId) && html`<${AmortDetail} loan=${getLoan(modal.loanId)} row=${getLoan(modal.loanId).emis.find(x => x.id === modal.row.id) || modal.row} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'help' && html`<${FloatingHelp} onClose=${() => setModal(modal.back || null)} />`}
+    ${modal && modal.type === 'prepay' && getLoan(modal.loanId) && html`<${PrepaymentForm} loan=${getLoan(modal.loanId)} onSave=${x => savePrepay(modal.loanId, x)} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'nw' && html`<${NWItemForm} kind=${modal.kind} item=${modal.item} onSave=${item => saveNwItem(modal.kind, item)} onClose=${() => setModal(null)} />`}
+    ${modal && modal.type === 'loan' && html`<${LoanForm} loan=${modal.loan} isNew=${modal.isNew} landPrice=${pd.property.totalCost} onSave=${saveLoan} onClose=${() => setModal(null)} />`}
+    ${confirm && html`<${Modal} title=${confirm.title} onClose=${() => setConfirm(null)}
+        footer=${html`<button className="btn" onClick=${() => setConfirm(null)}>Cancel</button>
+          <button className=${'btn ' + (confirm.danger ? 'danger solid' : 'primary')} onClick=${() => { const run = confirm.run; setConfirm(null); run(); }}>${confirm.yes}</button>`}>
+        <p>${confirm.text}</p>
+      <//>`}
+    ${toast && html`<div className="toast" role="status">${toast}</div>`}
+  </div>`;
+}
+
+function readStored() { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; } }
+function Root() {
+  const [st, setSt] = useState(() => {
+    const raw = readStored();
+    if (raw && raw.enc) return { locked: true, blob: raw, n: 0 };
+    let data = blank(); try { if (raw) data = normalize(raw); } catch (e) {}
+    return { locked: false, data, lock: null, n: 0 };
+  });
+  const lockNow = () => { const blob = readStored(); if (!blob || !blob.enc) return; Drive.token = null; Drive.expires = 0; setSt(x => ({ locked: true, blob, n: x.n + 1 })); };
+  if (st.locked && st.blob && st.blob.enc) return html`<${LockScreen} blob=${st.blob}
+    onOpen=${(data, lock) => setSt(x => ({ locked: false, data, lock, n: x.n + 1 }))}
+    onWipe=${() => { try { [STORE_KEY, STORE_KEY + ':exported', LINK_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) {} setSt(x => ({ locked: false, data: blank(), lock: null, n: x.n + 1 })); }} />`;
+  return html`<${App} key=${st.n} initial=${st.data || blank()} initialLock=${st.lock} onLock=${lockNow} />`;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${Root} />`);
+</script>
+</body>
+</html>
